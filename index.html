@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Чайка</title>
 
+  <!-- Шрифт Montserrat из Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet" />
 
+  <!-- Import Map: подключаем Three.js через CDN -->
   <script type="importmap">
     {
       "imports": {
@@ -18,25 +20,36 @@
   </script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* === Глобальные стили === */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
+      /* Градиент фона: голубой вверху → почти белый внизу */
       background: linear-gradient(to bottom, #B3E0F2 0%, #F5F0E8 100%);
       min-height: 100vh;
       overflow: hidden;
       font-family: 'Montserrat', sans-serif;
     }
 
+    /* Канвас Three.js занимает весь экран */
     #canvas-container {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       z-index: 0;
     }
 
+    /* === UI: надпись «Чайка» по центру экрана === */
     #title-overlay {
       position: fixed;
-      top: 50%; left: 50%;
+      top: 50%;
+      left: 50%;
       transform: translate(-50%, -50%);
       z-index: 10;
       text-align: center;
@@ -51,9 +64,11 @@
       color: #ffffff;
       letter-spacing: 0.25em;
       text-transform: uppercase;
+      /* Мягкая тень для читаемости на светлом фоне */
       text-shadow:
         0 2px 30px rgba(120, 180, 220, 0.6),
         0 0 80px rgba(100, 160, 210, 0.3);
+      /* Плавное появление при загрузке */
       animation: fadeIn 2s ease forwards;
       opacity: 0;
     }
@@ -70,14 +85,17 @@
       opacity: 0;
     }
 
+    /* Анимация плавного появления */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* Подсказка управления (внизу экрана) */
     #controls-hint {
       position: fixed;
-      bottom: 2rem; left: 50%;
+      bottom: 2rem;
+      left: 50%;
       transform: translateX(-50%);
       z-index: 10;
       font-family: 'Montserrat', sans-serif;
@@ -94,38 +112,60 @@
 </head>
 <body>
 
+  <!-- Контейнер для Three.js canvas -->
   <div id="canvas-container"></div>
 
+  <!-- UI: название игры по центру -->
   <div id="title-overlay">
     <h1>Чайка</h1>
     <div class="subtitle">над морем</div>
   </div>
 
+  <!-- Подсказка управления -->
   <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт</div>
 
+  <!-- =========================================================
+       Основной JavaScript: Three.js сцена
+  ========================================================= -->
   <script type="module">
     import * as THREE from 'three';
 
-    // ─── Рендерер ────────────────────────────────────────────
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // ─── Базовая настройка рендерера ───────────────────────────
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,          // прозрачный фон — сквозь него виден CSS-градиент body
+    });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Добавляем canvas в контейнер (z-index: 0, не перекрывает UI)
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    // ─── Сцена ───────────────────────────────────────────────
+    // ─── Сцена ────────────────────────────────────────────────
     const scene = new THREE.Scene();
+
+    // Туман: тёплый песочный цвет, плотность 0.0015
     scene.fog = new THREE.FogExp2(0xE8D5B7, 0.0015);
 
     // ─── Камера ──────────────────────────────────────────────
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(0, 15, 25);
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      2000
+    );
+    camera.position.set(0, 15, 25);  // стартовая позиция по заданию
     camera.lookAt(0, 0, 0);
 
     // ─── Освещение ───────────────────────────────────────────
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
+    // AmbientLight — мягкое рассеянное освещение, интенсивность 0.6
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    // DirectionalLight — тёплый цвет #FFE4B5, позиция (50, 30, 30)
     const dirLight = new THREE.DirectionalLight(0xFFE4B5, 1.2);
     dirLight.position.set(50, 30, 30);
     dirLight.castShadow = true;
@@ -136,146 +176,114 @@
     dirLight.shadow.camera.top    =  100;
     dirLight.shadow.camera.bottom = -100;
     scene.add(dirLight);
-    scene.add(new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.4));
 
-    // ═══════════════════════════════════════════════════════════
-    //  МОРЕ: направленные волны + Canvas-текстура
-    // ═══════════════════════════════════════════════════════════
+    // Мягкий заполняющий свет — имитация отражения воды снизу
+    const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.4);
+    scene.add(fillLight);
 
-    // ── Canvas-текстура: резкие горизонтальные полосы ──────────
+    // ─── Море: графичные волны в стиле Уэса Андерсона ──────────
     //
-    // Текстура — вертикальная полоска 4×512 пикселей.
-    // По оси Y (которая маппится на Z плоскости) идут:
-    //   тёмно-бирюзовый → светлый бирюзовый → белый → кремовый → тёмно-бирюзовый
-    // Резкость достигается маленькими зонами линейного перехода.
-    const TEX_W = 4;
-    const TEX_H = 512;
+    // Плоскость 300×300 с сегментами 200×200.
+    // flatShading: true убирает сглаживание нормалей — грани выглядят
+    // как плоские мазки гуашью, а не как сглаженная поверхность.
+    const planeGeometry = new THREE.PlaneGeometry(300, 300, 200, 200);
 
-    const waveCanvas = document.createElement('canvas');
-    waveCanvas.width  = TEX_W;
-    waveCanvas.height = TEX_H;
-    const ctx = waveCanvas.getContext('2d');
-
-    function buildWaveTexture() {
-      ctx.clearRect(0, 0, TEX_W, TEX_H);
-
-      // Одна «волновая полоса» занимает весь TEX_H.
-      // Разбиваем на зоны (доли от 0 до 1):
-      //   [0.00–0.30]  впадина: тёмный бирюзовый
-      //   [0.30–0.55]  склон:   переход к светлому
-      //   [0.55–0.78]  гребень: быстрый переход к белому
-      //   [0.78–0.90]  пена:    белый/кремовый
-      //   [0.90–1.00]  спуск:   резко обратно в тёмный (следующая впадина)
-      const stops = [
-        { pos: 0.00, color: '#3A8A9A' },
-        { pos: 0.28, color: '#3A8A9A' },   // длинная впадина — почти плоская
-        { pos: 0.50, color: '#7EC8E3' },   // плавный подъём
-        { pos: 0.72, color: '#B8E8F5' },   // предгребневая зона
-        { pos: 0.80, color: '#FFFFFF' },   // резкий белый гребень
-        { pos: 0.88, color: '#FFF8E7' },   // кремовая пена
-        { pos: 0.93, color: '#FFFFFF' },   // обратная сторона
-        { pos: 1.00, color: '#3A8A9A' },   // падение в следующую впадину
-      ];
-
-      const grad = ctx.createLinearGradient(0, 0, 0, TEX_H);
-      stops.forEach(s => grad.addColorStop(s.pos, s.color));
-
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, TEX_W, TEX_H);
-    }
-
-    buildWaveTexture();
-
-    const waveTexture = new THREE.CanvasTexture(waveCanvas);
-    waveTexture.wrapS = THREE.RepeatWrapping;
-    waveTexture.wrapT = THREE.RepeatWrapping;
-    // Масштаб: 1 повтор текстуры = 1 «волна» по Z.
-    // При плоскости 300×300 и желаемых ~6 волнах — repeat = (1, 6).
-    waveTexture.repeat.set(1, 6);
-
-    // ── Геометрия плоскости ────────────────────────────────────
-    const planeGeometry = new THREE.PlaneGeometry(300, 300, 120, 240);
-    // Больше сегментов по Z (направление волн) для чёткого рельефа
+    // Атрибут цвета вершин — будет обновляться каждый кадр
+    const vertexCount = planeGeometry.attributes.position.count;
+    const colorsArray = new Float32Array(vertexCount * 3);
+    planeGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
 
     const planeMaterial = new THREE.MeshStandardMaterial({
-      map: waveTexture,           // текстура вместо vertexColors
+      vertexColors: true,     // цвет берётся из атрибута вершин, не из .color
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.92,
       side: THREE.DoubleSide,
-      roughness: 0.45,
-      metalness: 0.08,
-      flatShading: true,          // графичные плоские грани
+      roughness: 0.55,
+      metalness: 0.05,
+      flatShading: true,      // рисованный вид — грани без интерполяции нормалей
     });
 
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-    plane.rotation.x = -Math.PI / 2;
+    plane.rotation.x = -Math.PI / 2;  // горизонтально, Y=0
     plane.position.y = 0;
     plane.receiveShadow = true;
     scene.add(plane);
 
+    // Кэшируем ссылки на атрибуты (избегаем лукапа по строке в горячем цикле)
     const planePositions = planeGeometry.attributes.position;
+    const planeColors    = planeGeometry.attributes.color;
 
-    // ── Функция высоты волны ───────────────────────────────────
-    //
-    // Все компоненты зависят ТОЛЬКО от wz (ось движения волны к берегу).
-    // wx входит только в шумовую модуляцию амплитуды, чтобы гребни
-    // были слегка изломанными, а не идеально прямыми.
-    //
-    // Шум: сумма двух медленных синусоид по X даёт квазислучайную
-    // огибающую — дёшево, без импорта simplex-noise.
-    function noiseX(wx) {
-      return 0.72
-        + 0.18 * Math.sin(wx * 0.07)
-        + 0.10 * Math.sin(wx * 0.19 + 1.3);
-    }
+    // Палитра для цветов волн (гуашь Уэса Андерсона):
+    //   Впадина     → глубокий бирюзовый  #3A8A9A
+    //   Середина    → пастельный          #7EC8E3
+    //   Гребень     → ярко-белый          #FFFFFF
+    //   Пена (пик)  → кремово-белый       #FFF8E7
+    const colorDeep  = new THREE.Color(0x3A8A9A);
+    const colorMid   = new THREE.Color(0x7EC8E3);
+    const colorCrest = new THREE.Color(0xFFFFFF);
+    const colorFoam  = new THREE.Color(0xFFF8E7);
 
+    // Временный объект — переиспользуем в цикле, не создаём новый каждый кадр
+    const tmpColor = new THREE.Color();
+
+    // ─── Функция высоты волны ─────────────────────────────────
+    //
+    // Приём 1: (1 - |sin(x)|)^p — чем больше p, тем острее гребень.
+    // При p=3 пик становится игольчатым, впадина широкой и пологой —
+    // именно этот силуэт даёт рисованный «гуашевый» вид.
+    //
+    // Приём 2: финальный Math.pow(sum, 1.6) дополнительно обжимает впадины
+    // и вытягивает гребни вверх, усиливая контраст рельефа.
     function waveHeight(wx, wz, t) {
-      const n = noiseX(wx);  // огибающая по X: диапазон ~0.44 .. 1.00
+      // p — степень заострения: чем выше, тем игольчатее пик
+      const p = 3.0;
 
-      // Главная зыбь — длинные пологие волны
-      const w1 = Math.sin(wz * 0.055 + t * 0.50) * 2.8;
+      // Волна 1: долгая зыбь по диагонали ~45° — главная, самая высокая
+      const w1 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.035 + wz * 0.020) + t * 0.45)), p) * 2.2;
 
-      // Вторая гармоника — чуть выше частота, немного другой темп
-      const w2 = Math.sin(wz * 0.110 + t * 0.70) * 1.6;
+      // Волна 2: поперечная, чуть чаще — создаёт пересекающиеся хребты
+      const w2 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.055 - wz * 0.045) + t * 0.65)), p) * 1.5;
 
-      // Мелкая рябь — быстрые короткие волны
-      const w3 = Math.sin(wz * 0.230 + t * 1.10) * 0.7;
+      // Волна 3: мелкая диагональная рябь — текстура поверхности
+      const w3 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.100 + wz * 0.080) + t * 1.10)), p) * 0.7;
 
-      // Длинная контрволна — медленная, добавляет неравномерность
-      const w4 = Math.sin(wz * 0.032 + t * 0.28) * 1.4;
+      // Волна 4: медленная контрволна — интерференционный паттерн
+      const w4 = Math.pow(1.0 - Math.abs(Math.sin((-wx * 0.028 + wz * 0.042) + t * 0.30)), p) * 1.0;
 
-      // Высокочастотная деталь — маленькие барашки
-      const w5 = Math.sin(wz * 0.400 + t * 1.80) * 0.25;
-
-      // Финальная высота: сумма × шумовая огибающая.
-      // Нормируем в диапазон 0..+maxH, смещая на половину суммы амплитуд:
-      const raw = w1 + w2 + w3 + w4 + w5;           // диапазон ~ -6.75..+6.75
-      const normalized = (raw + 6.75) / 13.5;        // 0..1
-      return Math.pow(normalized, 1.4) * 8.0 * n;    // заострение гребней + шум
+      // Нормируем сумму в 0..1, затем нелинейно растягиваем:
+      // впадины прижимаются к нулю, гребни вытягиваются вверх
+      const raw = (w1 + w2 + w3 + w4) / (2.2 + 1.5 + 0.7 + 1.0);
+      return Math.pow(raw, 1.6) * 9.0; // итоговый диапазон 0..~9
     }
 
-    // Смещение текстуры в каждом кадре: двигаем вместе с волнами
-    // скорость подобрана эмпирически — совпадает с визуальным движением гребней
-    let texOffsetV = 0;
+    // ─── Чайка (процедурная геометрия) ───────────────────────
 
-    // ─── Чайка ────────────────────────────────────────────────
-
+    // Крыло — вытянутый безье-контур, выдавленный через ExtrudeGeometry
     function createWing(mirrorX = false) {
       const shape = new THREE.Shape();
       const sign  = mirrorX ? -1 : 1;
+
       shape.moveTo(0, 0);
       shape.bezierCurveTo(sign * 0.5, 0.3, sign * 2.5, 0.6, sign * 4.5, 0.1);
       shape.bezierCurveTo(sign * 3.5, -0.1, sign * 1.5, -0.3, 0, 0);
+
       const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: 0.05, bevelEnabled: true,
-        bevelSize: 0.05, bevelThickness: 0.02, bevelSegments: 2,
+        depth: 0.05,
+        bevelEnabled: true,
+        bevelSize: 0.05,
+        bevelThickness: 0.02,
+        bevelSegments: 2,
       });
       const material = new THREE.MeshStandardMaterial({
-        color: 0xF8F4F0, roughness: 0.7, metalness: 0.0, side: THREE.DoubleSide,
+        color: 0xF8F4F0,
+        roughness: 0.7,
+        metalness: 0.0,
+        side: THREE.DoubleSide,
       });
       return new THREE.Mesh(geometry, material);
     }
 
+    // Тело — капсула, повёрнутая горизонтально
     function createBody() {
       const mesh = new THREE.Mesh(
         new THREE.CapsuleGeometry(0.2, 0.7, 8, 16),
@@ -285,6 +293,7 @@
       return mesh;
     }
 
+    // Хвост — конус
     function createTail() {
       const mesh = new THREE.Mesh(
         new THREE.ConeGeometry(0.15, 0.5, 6),
@@ -295,6 +304,7 @@
       return mesh;
     }
 
+    // Голова — сфера
     function createHead() {
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.18, 12, 12),
@@ -304,6 +314,7 @@
       return mesh;
     }
 
+    // Клюв — конус жёлтого цвета
     function createBeak() {
       const mesh = new THREE.Mesh(
         new THREE.ConeGeometry(0.05, 0.3, 6),
@@ -314,32 +325,45 @@
       return mesh;
     }
 
+    // Собираем чайку из всех частей
     function createSeagull() {
       const group = new THREE.Group();
-      const wingL = createWing(false);
-      const wingR = createWing(true);
+
+      const wingL = createWing(false);   // правое крыло
+      const wingR = createWing(true);    // левое крыло (зеркальное)
+
       wingL.position.set(-0.1, 0.08,  0.05);
       wingR.position.set(-0.1, 0.08, -0.10);
+
       group.add(createBody(), createTail(), createHead(), createBeak(), wingL, wingR);
-      group.traverse(child => { if (child.isMesh) child.castShadow = true; });
+
+      // Включаем тени для всех дочерних мешей
+      group.traverse(child => {
+        if (child.isMesh) child.castShadow = true;
+      });
+
+      // Ссылки на крылья нужны для анимации маха
       group.userData.wingL = wingL;
       group.userData.wingR = wingR;
+
       return group;
     }
 
-    // ─── Стая ─────────────────────────────────────────────────
+    // ─── Создаём стаю чаек ────────────────────────────────────
     const seagulls = [];
 
     for (let i = 0; i < 7; i++) {
       const gull   = createSeagull();
       const angle  = (i / 7) * Math.PI * 2;
       const radius = 5 + Math.random() * 15;
+
       gull.position.set(
         Math.cos(angle) * radius,
         4 + Math.random() * 8,
         Math.sin(angle) * radius
       );
       gull.scale.setScalar(0.6 + Math.random() * 0.6);
+
       gull.userData.speed         = 0.004 + Math.random() * 0.006;
       gull.userData.orbitRadius   = radius;
       gull.userData.orbitAngle    = angle;
@@ -347,15 +371,19 @@
       gull.userData.wingPhase     = Math.random() * Math.PI * 2;
       gull.userData.wingSpeed     = 1.5 + Math.random() * 2;
       gull.userData.verticalPhase = Math.random() * Math.PI * 2;
+
       scene.add(gull);
       seagulls.push(gull);
     }
 
-    // ─── Облака ───────────────────────────────────────────────
+    // ─── Облака (группы сфер) ─────────────────────────────────
     function createCloud() {
       const group = new THREE.Group();
       const mat = new THREE.MeshStandardMaterial({
-        color: 0xFFFFFF, transparent: true, opacity: 0.85, roughness: 1.0,
+        color: 0xFFFFFF,
+        transparent: true,
+        opacity: 0.85,
+        roughness: 1.0,
       });
       [
         { r: 1.8, x:  0.0, y:  0.0, z: 0.0 },
@@ -389,55 +417,76 @@
       clouds.push(cloud);
     }
 
-    // ─── Управление ───────────────────────────────────────────
+    // ─── Управление игроком ───────────────────────────────────
     const keys = {};
     window.addEventListener('keydown', e => { keys[e.code] = true; });
     window.addEventListener('keyup',   e => { keys[e.code] = false; });
 
+    // Первая чайка — игрок
     const playerGull = seagulls[0];
     playerGull.scale.setScalar(1.2);
     playerGull.position.set(0, 6, 10);
-    playerGull.userData.isPlayer  = true;
-    playerGull.userData.velocityY = 0;
+    playerGull.userData.isPlayer   = true;
+    playerGull.userData.velocityY  = 0;
 
+    // ─── Адаптация к изменению размера окна ──────────────────
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // ─── Главный цикл ─────────────────────────────────────────
+    // ─── Главный цикл анимации ────────────────────────────────
     const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
       const t = clock.getElapsedTime();
 
-      // ── Обновление геометрии волн ──────────────────────────
+      // ── Графичные волны: острые гребни, палитра гуашь ──────
       //
-      // PlaneGeometry в исходном положении (до rotation.x = -PI/2):
-      //   ось X плоскости = мировой X
-      //   ось Y плоскости = мировой -Z (!)
-      // Поэтому getY(i) — это Z-координата в мировом пространстве,
-      // и именно она используется как аргумент волны.
-      // getZ(i) — высота вершины (Z-ось геометрии до поворота = мировой Y).
+      // Три зоны окраски по высоте:
+      //   0   .. mid    → deep  → mid   (впадина → склон)
+      //   mid .. crest  → mid   → white (склон → гребень)
+      //   crest.. max   → white → foam  (гребень → пенная шапка)
+      const maxHeight    = 9.0;
+      const midLevel     = maxHeight * 0.35; // граница впадина/склон
+      const crestLevel   = maxHeight * 0.72; // граница склон/гребень
+      const foamLevel    = maxHeight * 0.88; // граница гребень/пена
+
       for (let i = 0; i < planePositions.count; i++) {
-        const wx = planePositions.getX(i);  // мировой X (поперёк волн)
-        const wz = planePositions.getY(i);  // мировой -Z (вдоль волн)
-        planePositions.setZ(i, waveHeight(wx, wz, t));
+        const wx = planePositions.getX(i);
+        const wz = planePositions.getY(i);
+
+        const h = waveHeight(wx, wz, t);
+        planePositions.setZ(i, h);
+
+        // Трёхступенчатая интерполяция цвета
+        if (h >= foamLevel) {
+          // Пенная шапка — кремово-белый #FFF8E7
+          const t2 = Math.min((h - foamLevel) / (maxHeight - foamLevel), 1.0);
+          tmpColor.copy(colorCrest).lerp(colorFoam, t2);
+        } else if (h >= crestLevel) {
+          // Гребень — от пастельного к ярко-белому
+          const t2 = (h - crestLevel) / (foamLevel - crestLevel);
+          tmpColor.copy(colorMid).lerp(colorCrest, Math.pow(t2, 0.5));
+        } else if (h >= midLevel) {
+          // Склон — от бирюзового к пастельному
+          const t2 = (h - midLevel) / (crestLevel - midLevel);
+          tmpColor.copy(colorDeep).lerp(colorMid, t2);
+        } else {
+          // Глубокая впадина — чистый #3A8A9A
+          tmpColor.copy(colorDeep);
+        }
+
+        planeColors.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
       }
+
       planePositions.needsUpdate = true;
-      planeGeometry.computeVertexNormals();
+      planeColors.needsUpdate    = true;
+      planeGeometry.computeVertexNormals();   // пересчитываем нормали после смещения вершин
 
-      // ── Анимация текстуры: полосы двигаются вместе с волнами ─
-      // Скорость = (скорость видимого движения гребней) / (размер плоскости * repeat)
-      // Главная волна: wz * 0.055 + t * 0.5 → фазовая скорость = 0.5 / 0.055 ≈ 9.1 ед/с
-      // При размере плоскости 300 и repeat.y = 6: texOffset_per_sec = 9.1 / (300/6) = 0.182
-      texOffsetV += 0.182 * clock.getDelta() * 0; // getDelta уже потреблён — используем фиксированный шаг
-      // Пересчитываем через t напрямую (стабильнее):
-      waveTexture.offset.y = (t * 0.182) % 1.0;
-
-      // ── Облака ─────────────────────────────────────────────
+      // ── Дрейф облаков ──────────────────────────────────────
       clouds.forEach(cloud => {
         cloud.userData.angle += cloud.userData.speed;
         cloud.position.x = Math.cos(cloud.userData.angle) * cloud.userData.dist;
@@ -445,23 +494,27 @@
         cloud.position.y += Math.sin(t * 0.3 + cloud.userData.angle) * 0.002;
       });
 
-      // ── NPC-чайки ──────────────────────────────────────────
+      // ── NPC-чайки: круговые орбиты с покачиванием ──────────
       seagulls.forEach(gull => {
         if (gull.userData.isPlayer) return;
+
         gull.userData.orbitAngle += gull.userData.speed;
         const a = gull.userData.orbitAngle;
         const r = gull.userData.orbitRadius;
+
         gull.position.x = Math.cos(a) * r;
         gull.position.z = Math.sin(a) * r;
         gull.position.y = gull.userData.orbitY
           + Math.sin(t * 0.5 + gull.userData.verticalPhase) * 1.2;
-        gull.rotation.y = -a + Math.PI / 2;
+
+        gull.rotation.y = -a + Math.PI / 2;  // смотрит по направлению движения
+
         const wingAngle = Math.sin(t * gull.userData.wingSpeed + gull.userData.wingPhase) * 0.4;
         gull.userData.wingL.rotation.x =  wingAngle;
         gull.userData.wingR.rotation.x = -wingAngle;
       });
 
-      // ── Игрок ──────────────────────────────────────────────
+      // ── Управление игроком ─────────────────────────────────
       const moveSpeed = 0.08;
       const turnSpeed = 0.03;
 
@@ -469,12 +522,14 @@
       if (keys['ArrowRight']) playerGull.rotation.y -= turnSpeed;
 
       const dir = new THREE.Vector3(
-        -Math.sin(playerGull.rotation.y), 0,
+        -Math.sin(playerGull.rotation.y),
+        0,
         -Math.cos(playerGull.rotation.y)
       );
       if (keys['ArrowUp'])   playerGull.position.addScaledVector(dir,  moveSpeed);
       if (keys['ArrowDown']) playerGull.position.addScaledVector(dir, -moveSpeed);
 
+      // Пробел — взлёт; без пробела — плавное снижение (имитация гравитации)
       if (keys['Space']) {
         playerGull.userData.velocityY = 0.08;
       } else {
@@ -485,13 +540,15 @@
         playerGull.position.y + playerGull.userData.velocityY
       ));
 
+      // Мах крыльями быстрее при взлёте
       const pWingAngle = Math.sin(t * (keys['Space'] ? 4 : 2)) * 0.5;
       playerGull.userData.wingL.rotation.x =  pWingAngle;
       playerGull.userData.wingR.rotation.x = -pWingAngle;
 
-      // ── Камера ─────────────────────────────────────────────
+      // ── Камера следит за игроком (плавно через lerp) ───────
       const offset = new THREE.Vector3(
-        Math.sin(playerGull.rotation.y) * 20, 12,
+        Math.sin(playerGull.rotation.y) * 20,
+        12,
         Math.cos(playerGull.rotation.y) * 20
       );
       camera.position.lerp(playerGull.position.clone().add(offset), 0.05);
@@ -500,8 +557,57 @@
       renderer.render(scene, camera);
     }
 
-    animate();
+    animate();  // запускаем цикл
   </script>
 
 </body>
 </html>
+
+<!--
+=================================================================
+  📋 ИНСТРУКЦИЯ: КАК ЗАДЕПЛОИТЬ НА GITHUB PAGES
+=================================================================
+
+  Шаг 1. Создай аккаунт на GitHub (если ещё нет)
+  ────────────────────────────────────────────────
+  Зайди на https://github.com и зарегистрируйся.
+
+  Шаг 2. Создай новый репозиторий
+  ────────────────────────────────────────────────
+  • Нажми кнопку «+» → «New repository»
+  • Назови репозиторий, например: seagull-game
+  • Оставь его публичным (Public)
+  • Нажми «Create repository»
+
+  Шаг 3. Загрузи файл в репозиторий
+  ────────────────────────────────────────────────
+  Вариант А — через браузер (проще):
+    • В только что созданном репозитории нажми «Add file» → «Upload files»
+    • Переименуй файл в index.html (GitHub Pages ищет именно его)
+    • Перетащи файл в область загрузки
+    • Внизу нажми «Commit changes»
+
+  Вариант Б — через Git (терминал):
+    git init
+    git add index.html
+    git commit -m "Initial commit: Чайка game"
+    git branch -M main
+    git remote add origin https://github.com/ВАШ_ЛОГИН/seagull-game.git
+    git push -u origin main
+
+  Шаг 4. Включи GitHub Pages
+  ────────────────────────────────────────────────
+  • Зайди в настройки репозитория: вкладка «Settings»
+  • В боковом меню найди раздел «Pages»
+  • В поле «Source» выбери ветку: main, папку: / (root)
+  • Нажми «Save»
+
+  Шаг 5. Подожди и открой сайт
+  ────────────────────────────────────────────────
+  • Через 1–3 минуты GitHub опубликует страницу.
+  • Адрес будет: https://ВАШ_ЛОГИН.github.io/seagull-game/
+  • Ссылка также появится в разделе «Settings → Pages»
+
+  Готово! Игра доступна в браузере по публичной ссылке.
+=================================================================
+-->
