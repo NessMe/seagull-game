@@ -24,6 +24,12 @@
       min-height: 100vh;
       overflow: hidden;
       font-family: 'Montserrat', sans-serif;
+      /* ── Плавный переход фона ── */
+      transition: background 0.0s;
+    }
+    /* ── Ночной фон body ── */
+    body.night {
+      background: #1A2A40;
     }
     #canvas-container {
       position: fixed;
@@ -83,6 +89,28 @@
       opacity: 0;
       pointer-events: none;
     }
+
+    /* ── Индикатор дня/ночи (новый элемент) ── */
+    #time-indicator {
+      position: fixed;
+      top: 1.2rem;
+      right: 1.5rem;
+      z-index: 20;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 300;
+      font-size: 0.75rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 0.35em 0.85em;
+      border-radius: 2em;
+      backdrop-filter: blur(6px);
+      pointer-events: none;
+      animation: fadeIn 2s ease 2s forwards;
+      opacity: 0;
+    }
   </style>
 </head>
 <body>
@@ -94,7 +122,10 @@
     <div class="subtitle">над морем</div>
   </div>
 
-  <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт</div>
+  <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт · N — день/ночь</div>
+
+  <!-- ── Индикатор текущего времени суток ── -->
+  <div id="time-indicator">☀ День</div>
 
   <script type="module">
     import * as THREE from 'three';
@@ -107,10 +138,8 @@
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-
     scene.fog = new THREE.FogExp2(0xC8E8F5, 0.003);
 
-    // [ИЗМЕНЕНИЕ 1] Камера опущена, смотрит выше горизонта — небо занимает ~60% экрана
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(0, 6, 20);
     camera.lookAt(0, 3, -10);
@@ -132,52 +161,36 @@
     const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.4);
     scene.add(fillLight);
 
-    // ─── Солнце (sunGroup из трёх вложенных сфер) ──────────────────────
-    // [ИЗМЕНЕНИЕ 2] Солнце поднято выше, смещено дальше по Z
-    const SUN_POSITION = new THREE.Vector3(0, 10, -100);
+    // ─── СОЛНЦЕ ────────────────────────────────────────────────────────
+    const SUN_WORLD_POS = new THREE.Vector3(0, 15, -60);
 
     const sunGroup = new THREE.Group();
-    sunGroup.position.copy(SUN_POSITION);
-    sunGroup.renderOrder = 999;
+    sunGroup.position.copy(SUN_WORLD_POS);
 
-    // Центральная сфера: радиус 3, #FFFDE0
     const sunCore = new THREE.Mesh(
       new THREE.SphereGeometry(3, 32, 32),
       new THREE.MeshBasicMaterial({
-        color: 0xFFFDE0,
-        fog: false,
-        depthWrite: false,
-        depthTest: false,
+        color: 0xFFFDE0, fog: false, depthWrite: false, depthTest: false,
       })
     );
     sunCore.renderOrder = 999;
     sunGroup.add(sunCore);
 
-    // Средняя сфера: радиус 6, #FFE082, opacity 0.4
     const sunMid = new THREE.Mesh(
       new THREE.SphereGeometry(6, 32, 32),
       new THREE.MeshBasicMaterial({
-        color: 0xFFE082,
-        transparent: true,
-        opacity: 0.4,
-        fog: false,
-        depthWrite: false,
-        depthTest: false,
+        color: 0xFFE082, transparent: true, opacity: 0.4,
+        fog: false, depthWrite: false, depthTest: false,
       })
     );
     sunMid.renderOrder = 998;
     sunGroup.add(sunMid);
 
-    // Внешняя сфера: радиус 10, #FFD54F, opacity 0.15
     const sunOuter = new THREE.Mesh(
       new THREE.SphereGeometry(10, 32, 32),
       new THREE.MeshBasicMaterial({
-        color: 0xFFD54F,
-        transparent: true,
-        opacity: 0.15,
-        fog: false,
-        depthWrite: false,
-        depthTest: false,
+        color: 0xFFD54F, transparent: true, opacity: 0.15,
+        fog: false, depthWrite: false, depthTest: false,
       })
     );
     sunOuter.renderOrder = 997;
@@ -185,28 +198,100 @@
 
     scene.add(sunGroup);
 
-    // ─── Блик солнца на воде ───────────────────────────────────────────
-    const sunGlare = new THREE.Mesh(
-      new THREE.PlaneGeometry(20, 20),
+    // ─── СВЕТОВАЯ ДОРОЖКА НА ВОДЕ ──────────────────────────────────────
+    const sunReflection = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 30),
       new THREE.MeshBasicMaterial({
-        color: 0xFFFFFF,
-        transparent: true,
-        opacity: 0.25,
-        depthWrite: false,
-        side: THREE.DoubleSide,
+        color: 0xFFF8DC, transparent: true, opacity: 0.3,
+        depthWrite: false, side: THREE.DoubleSide,
       })
     );
-    sunGlare.rotation.x = -Math.PI / 2;
-    sunGlare.position.set(SUN_POSITION.x, 0.2, SUN_POSITION.z);
-    scene.add(sunGlare);
+    sunReflection.rotation.x = -Math.PI / 2;
+    sunReflection.position.set(SUN_WORLD_POS.x, 0.2, SUN_WORLD_POS.z);
+    scene.add(sunReflection);
 
-    // [ИЗМЕНЕНИЕ 3] Точечный источник света под солнцем — создаёт отражение на воде
-    const sunReflectionLight = new THREE.PointLight(0xFFF8DC, 2.5, 80);
-    sunReflectionLight.position.set(SUN_POSITION.x, 0.3, SUN_POSITION.z);
-    scene.add(sunReflectionLight);
+    // ─── ТОЧЕЧНЫЙ ИСТОЧНИК СВЕТА (солнечный) ───────────────────────────
+    const sunLight = new THREE.PointLight(0xFFF8DC, 3, 120);
+    sunLight.position.set(SUN_WORLD_POS.x, 0.5, SUN_WORLD_POS.z);
+    scene.add(sunLight);
 
-    // ─── Море ──────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    // ─── ЛУНА (новый объект, виден только ночью) ───────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    const moonGroup = new THREE.Group();
+    moonGroup.position.set(-40, 40, -120);
+    moonGroup.visible = false; // скрыта днём
 
+    // Основной диск луны
+    const moonCore = new THREE.Mesh(
+      new THREE.SphereGeometry(3, 32, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xFFFACD,
+        fog: false,       // не скрывать туманом
+        depthWrite: false,
+        depthTest: false,
+      })
+    );
+    moonCore.renderOrder = 999;
+    moonGroup.add(moonCore);
+
+    // Мягкий лунный ореол
+    const moonGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(5.5, 32, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xD0E8FF,
+        transparent: true,
+        opacity: 0.18,
+        fog: false,
+        depthWrite: false,
+        depthTest: false,
+      })
+    );
+    moonGlow.renderOrder = 998;
+    moonGroup.add(moonGlow);
+
+    scene.add(moonGroup);
+
+    // ── Лунный свет — мягкая точечная лампа ──────────────────────────
+    const moonLight = new THREE.PointLight(0x8899CC, 0, 200);
+    moonLight.position.set(-40, 0.5, -60); // отражение на воде
+    scene.add(moonLight);
+    // ══════════════════════════════════════════════════════════════════
+
+    // ══════════════════════════════════════════════════════════════════
+    // ─── ЗВЁЗДЫ (PointsMaterial, видны только ночью) ──────────────────
+    // ══════════════════════════════════════════════════════════════════
+    const STAR_COUNT = 300;
+    const starPositions = new Float32Array(STAR_COUNT * 3);
+    const starSizes     = new Float32Array(STAR_COUNT);
+
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const angle  = Math.random() * Math.PI * 2;
+      const radius = Math.random() * 200;
+      starPositions[i * 3 + 0] = Math.cos(angle) * radius;          // X
+      starPositions[i * 3 + 1] = 50 + Math.random() * 50;           // Y: 50–100
+      starPositions[i * 3 + 2] = Math.sin(angle) * radius;          // Z
+      starSizes[i] = 1 + Math.random() * 2;                          // 1–3 px
+    }
+
+    const starGeometry = new THREE.BufferGeometry();
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xFFFFFF,
+      size: 1.8,
+      sizeAttenuation: false, // фиксированный размер в пикселях
+      transparent: true,
+      opacity: 0.9,
+      fog: false,             // звёзды не скрываются туманом
+    });
+
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    stars.visible = false; // скрыты днём
+    scene.add(stars);
+    // ══════════════════════════════════════════════════════════════════
+
+    // ─── МОРЕ ──────────────────────────────────────────────────────────
     const alphaCanvas = document.createElement('canvas');
     alphaCanvas.width  = 512;
     alphaCanvas.height = 512;
@@ -248,11 +333,23 @@
     const planePositions = planeGeometry.attributes.position;
     const planeColors    = planeGeometry.attributes.color;
 
-    const colorDeep  = new THREE.Color(0x3A8A9A);
-    const colorMid   = new THREE.Color(0x7EC8E3);
-    const colorCrest = new THREE.Color(0xFFFFFF);
-    const colorFoam  = new THREE.Color(0xFFF8E7);
-    const tmpColor   = new THREE.Color();
+    // ── Дневные цвета воды ───────────────────────────────────────────
+    const dayColors = {
+      deep:  new THREE.Color(0x3A8A9A),
+      mid:   new THREE.Color(0x7EC8E3),
+      crest: new THREE.Color(0xFFFFFF),
+      foam:  new THREE.Color(0xFFF8E7),
+    };
+
+    // ── Ночные цвета воды (новые) ─────────────────────────────────────
+    const nightColors = {
+      deep:  new THREE.Color(0x0F2A3A), // глубокий синий
+      mid:   new THREE.Color(0x1A3A4A), // тёмно-синий
+      crest: new THREE.Color(0xC0C8D4), // серебристые гребни
+      foam:  new THREE.Color(0xD0D8E8), // чуть светлее серебра
+    };
+
+    const tmpColor = new THREE.Color();
 
     function waveHeight(wx, wz, t) {
       const p = 3.0;
@@ -266,7 +363,7 @@
       return amplitude;
     }
 
-    // ─── Чайка ─────────────────────────────────────────────────────────
+    // ─── ЧАЙКА ─────────────────────────────────────────────────────────
     function createWing(mirrorX = false) {
       const shape = new THREE.Shape();
       const sign  = mirrorX ? -1 : 1;
@@ -351,7 +448,7 @@
       seagulls.push(gull);
     }
 
-    // ─── Облака ────────────────────────────────────────────────────────
+    // ─── ОБЛАКА ────────────────────────────────────────────────────────
     function createCloud() {
       const group = new THREE.Group();
       const mat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.85, roughness: 1.0 });
@@ -383,10 +480,91 @@
       clouds.push(cloud);
     }
 
-    // ─── Управление ────────────────────────────────────────────────────
+    // ─── УПРАВЛЕНИЕ ────────────────────────────────────────────────────
     const keys = {};
-    window.addEventListener('keydown', e => { keys[e.code] = true; });
-    window.addEventListener('keyup',   e => { keys[e.code] = false; });
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+
+      // ══════════════════════════════════════════════════════════════
+      // ── Переключение дня/ночи по клавише N ───────────────────────
+      // ══════════════════════════════════════════════════════════════
+      if (e.code === 'KeyN') {
+        toggleDayNight();
+      }
+    });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+    // ══════════════════════════════════════════════════════════════════
+    // ─── ПЕРЕМЕННАЯ РЕЖИМА и ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ─────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    let isNight = false;
+    const timeIndicator = document.getElementById('time-indicator');
+
+    function toggleDayNight() {
+      isNight = !isNight;
+
+      if (isNight) {
+        // ── Переключаем на ночь ────────────────────────────────────
+
+        // Фон страницы
+        document.body.classList.add('night');
+
+        // Туман: тёмный, чуть плотнее
+        scene.fog = new THREE.FogExp2(0x1A2A40, 0.004);
+
+        // Освещение: холодный голубоватый ambient
+        ambientLight.color.set(0x8899AA);
+        ambientLight.intensity = 0.2;
+
+        // Направленный свет: холодный синий, слабый
+        dirLight.color.set(0x8899AA);
+        dirLight.intensity = 0.3;
+
+        // Солнце: скрыть
+        sunGroup.visible      = false;
+        sunReflection.visible = false;
+        sunLight.visible      = false;
+
+        // Луна и звёзды: показать
+        moonGroup.visible = true;
+        stars.visible     = true;
+        moonLight.intensity = 1.5;
+
+        // Индикатор
+        timeIndicator.textContent = '☽ Ночь';
+
+      } else {
+        // ── Переключаем на день ────────────────────────────────────
+
+        // Фон страницы
+        document.body.classList.remove('night');
+
+        // Туман: дневной
+        scene.fog = new THREE.FogExp2(0xC8E8F5, 0.003);
+
+        // Освещение: тёплый дневной ambient
+        ambientLight.color.set(0xffffff);
+        ambientLight.intensity = 0.6;
+
+        // Направленный свет: солнечный тёплый
+        dirLight.color.set(0xFFE4B5);
+        dirLight.intensity = 1.2;
+
+        // Солнце: показать
+        sunGroup.visible      = true;
+        sunReflection.visible = true;
+        sunLight.visible      = true;
+
+        // Луна и звёзды: скрыть
+        moonGroup.visible   = false;
+        stars.visible       = false;
+        moonLight.intensity = 0;
+
+        // Индикатор
+        timeIndicator.textContent = '☀ День';
+      }
+    }
+    // ══════════════════════════════════════════════════════════════════
 
     const playerGull = seagulls[0];
     playerGull.scale.setScalar(1.2);
@@ -406,20 +584,21 @@
       requestAnimationFrame(animate);
       const t = clock.getElapsedTime();
 
-      // [ИЗМЕНЕНИЕ 2] Фиксируем Y солнца = 10
-      sunGroup.position.y = 10;
+      // ── Позиция солнца ────────────────────────────────────────────────
+      sunGroup.position.set(SUN_WORLD_POS.x, SUN_WORLD_POS.y, SUN_WORLD_POS.z);
 
-      // ── Обновляем блик строго под солнцем ──────────────────
-      sunGlare.position.x = sunGroup.position.x;
-      sunGlare.position.z = sunGroup.position.z;
-      sunGlare.position.y = 0.2;
+      sunReflection.position.x = sunGroup.position.x;
+      sunReflection.position.z = sunGroup.position.z;
+      sunReflection.position.y = 0.2;
 
-      // [ИЗМЕНЕНИЕ 3] Обновляем позицию отражающего источника света под солнцем
-      sunReflectionLight.position.x = sunGroup.position.x;
-      sunReflectionLight.position.z = sunGroup.position.z;
-      sunReflectionLight.position.y = 0.3;
+      sunLight.position.x = sunGroup.position.x;
+      sunLight.position.z = sunGroup.position.z;
+      sunLight.position.y = 0.5;
 
-      // ── Волны ──────────────────────────────────────────────
+      // ── Волны — цвет зависит от режима ────────────────────────────────
+      // Выбираем нужный набор цветов в зависимости от isNight
+      const wc = isNight ? nightColors : dayColors;
+
       const maxHeight  = 9.0;
       const midLevel   = maxHeight * 0.35;
       const crestLevel = maxHeight * 0.72;
@@ -433,15 +612,15 @@
 
         if (h >= foamLevel) {
           const t2 = Math.min((h - foamLevel) / (maxHeight - foamLevel), 1.0);
-          tmpColor.copy(colorCrest).lerp(colorFoam, t2);
+          tmpColor.copy(wc.crest).lerp(wc.foam, t2);
         } else if (h >= crestLevel) {
           const t2 = (h - crestLevel) / (foamLevel - crestLevel);
-          tmpColor.copy(colorMid).lerp(colorCrest, Math.pow(t2, 0.5));
+          tmpColor.copy(wc.mid).lerp(wc.crest, Math.pow(t2, 0.5));
         } else if (h >= midLevel) {
           const t2 = (h - midLevel) / (crestLevel - midLevel);
-          tmpColor.copy(colorDeep).lerp(colorMid, t2);
+          tmpColor.copy(wc.deep).lerp(wc.mid, t2);
         } else {
-          tmpColor.copy(colorDeep);
+          tmpColor.copy(wc.deep);
         }
         planeColors.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
       }
@@ -449,7 +628,7 @@
       planeColors.needsUpdate    = true;
       planeGeometry.computeVertexNormals();
 
-      // ── Облака ─────────────────────────────────────────────
+      // ── Облака ─────────────────────────────────────────────────────────
       clouds.forEach(cloud => {
         cloud.userData.angle += cloud.userData.speed;
         cloud.position.x = Math.cos(cloud.userData.angle) * cloud.userData.dist;
@@ -457,7 +636,7 @@
         cloud.position.y += Math.sin(t * 0.3 + cloud.userData.angle) * 0.002;
       });
 
-      // ── NPC-чайки ──────────────────────────────────────────
+      // ── NPC-чайки ──────────────────────────────────────────────────────
       seagulls.forEach(gull => {
         if (gull.userData.isPlayer) return;
         gull.userData.orbitAngle += gull.userData.speed;
@@ -472,7 +651,7 @@
         gull.userData.wingR.rotation.x = -wingAngle;
       });
 
-      // ── Игрок ──────────────────────────────────────────────
+      // ── Игрок ──────────────────────────────────────────────────────────
       const moveSpeed = 0.08;
       const turnSpeed = 0.03;
       if (keys['ArrowLeft'])  playerGull.rotation.y += turnSpeed;
@@ -491,8 +670,7 @@
       playerGull.userData.wingL.rotation.x =  pWingAngle;
       playerGull.userData.wingR.rotation.x = -pWingAngle;
 
-      // ── Камера ─────────────────────────────────────────────
-      // [ИЗМЕНЕНИЕ 1] Камера следует за игроком с новым углом — небо занимает ~60% экрана
+      // ── Камера ─────────────────────────────────────────────────────────
       const offset = new THREE.Vector3(
         Math.sin(playerGull.rotation.y) * 20, 6,
         Math.cos(playerGull.rotation.y) * 20
@@ -500,7 +678,6 @@
       const targetPos = playerGull.position.clone().add(offset);
       camera.position.lerp(targetPos, 0.05);
 
-      // Смотрим немного выше игрока, чтобы горизонт был на ~40% снизу
       const lookTarget = playerGull.position.clone().add(
         new THREE.Vector3(-Math.sin(playerGull.rotation.y) * 15, 1, -Math.cos(playerGull.rotation.y) * 15)
       );
