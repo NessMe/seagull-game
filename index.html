@@ -20,16 +20,12 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: linear-gradient(to bottom, #B3E0F2 0%, #F5F0E8 100%);
       min-height: 100vh;
       overflow: hidden;
       font-family: 'Montserrat', sans-serif;
-      /* ── Плавный переход фона ── */
-      transition: background 0.0s;
-    }
-    /* ── Ночной фон body ── */
-    body.night {
-      background: #1A2A40;
+      /* Фон управляется через JS — CSS-переменная --sky-bg */
+      background: #FFB89A;
+      transition: background 2s linear;
     }
     #canvas-container {
       position: fixed;
@@ -90,7 +86,7 @@
       pointer-events: none;
     }
 
-    /* ── Индикатор дня/ночи (новый элемент) ── */
+    /* ── Индикатор времени суток ── */
     #time-indicator {
       position: fixed;
       top: 1.2rem;
@@ -101,15 +97,18 @@
       font-size: 0.75rem;
       letter-spacing: 0.25em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.8);
-      background: rgba(0, 0, 0, 0.18);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      padding: 0.35em 0.85em;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      padding: 0.4em 0.9em;
       border-radius: 2em;
       backdrop-filter: blur(6px);
       pointer-events: none;
       animation: fadeIn 2s ease 2s forwards;
       opacity: 0;
+      /* Минимальная ширина, чтобы текст не прыгал */
+      min-width: 10em;
+      text-align: center;
     }
   </style>
 </head>
@@ -122,14 +121,18 @@
     <div class="subtitle">над морем</div>
   </div>
 
-  <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт · N — день/ночь</div>
+  <!-- Подсказка: N — ускорение времени x10 для теста -->
+  <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт · N — ускорить время ×10</div>
 
-  <!-- ── Индикатор текущего времени суток ── -->
-  <div id="time-indicator">☀ День</div>
+  <!-- Индикатор фазы и игрового времени -->
+  <div id="time-indicator">☀ Утро · 0с</div>
 
   <script type="module">
     import * as THREE from 'three';
 
+    // ════════════════════════════════════════════════════════════════
+    // ─── РЕНДЕРЕР ────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -138,17 +141,20 @@
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0xC8E8F5, 0.003);
+    scene.fog = new THREE.FogExp2(0xFFD0AA, 0.003);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(0, 6, 20);
     camera.lookAt(0, 3, -10);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // ════════════════════════════════════════════════════════════════
+    // ─── ОСВЕЩЕНИЕ ───────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    const ambientLight = new THREE.AmbientLight(0xffeedd, 0.4);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xFFE4B5, 1.2);
-    dirLight.position.set(50, 30, 30);
+    const dirLight = new THREE.DirectionalLight(0xFFAA66, 0.8);
+    dirLight.position.set(-80, 5, -60);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.set(2048, 2048);
     dirLight.shadow.camera.far = 300;
@@ -158,143 +164,104 @@
     dirLight.shadow.camera.bottom = -100;
     scene.add(dirLight);
 
-    const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.4);
+    const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.3);
     scene.add(fillLight);
 
-    // ─── СОЛНЦЕ ────────────────────────────────────────────────────────
-    const SUN_WORLD_POS = new THREE.Vector3(0, 15, -60);
-
+    // ════════════════════════════════════════════════════════════════
+    // ─── СОЛНЦЕ ──────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     const sunGroup = new THREE.Group();
-    sunGroup.position.copy(SUN_WORLD_POS);
+    sunGroup.position.set(-80, 5, -60);
 
     const sunCore = new THREE.Mesh(
       new THREE.SphereGeometry(3, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0xFFFDE0, fog: false, depthWrite: false, depthTest: false,
-      })
+      new THREE.MeshBasicMaterial({ color: 0xFFFDE0, fog: false, depthWrite: false, depthTest: false })
     );
     sunCore.renderOrder = 999;
     sunGroup.add(sunCore);
 
     const sunMid = new THREE.Mesh(
       new THREE.SphereGeometry(6, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0xFFE082, transparent: true, opacity: 0.4,
-        fog: false, depthWrite: false, depthTest: false,
-      })
+      new THREE.MeshBasicMaterial({ color: 0xFFE082, transparent: true, opacity: 0.4, fog: false, depthWrite: false, depthTest: false })
     );
     sunMid.renderOrder = 998;
     sunGroup.add(sunMid);
 
     const sunOuter = new THREE.Mesh(
       new THREE.SphereGeometry(10, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0xFFD54F, transparent: true, opacity: 0.15,
-        fog: false, depthWrite: false, depthTest: false,
-      })
+      new THREE.MeshBasicMaterial({ color: 0xFFD54F, transparent: true, opacity: 0.15, fog: false, depthWrite: false, depthTest: false })
     );
     sunOuter.renderOrder = 997;
     sunGroup.add(sunOuter);
 
     scene.add(sunGroup);
 
-    // ─── СВЕТОВАЯ ДОРОЖКА НА ВОДЕ ──────────────────────────────────────
+    // Световая дорожка на воде от солнца
     const sunReflection = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 30),
-      new THREE.MeshBasicMaterial({
-        color: 0xFFF8DC, transparent: true, opacity: 0.3,
-        depthWrite: false, side: THREE.DoubleSide,
-      })
+      new THREE.MeshBasicMaterial({ color: 0xFFF8DC, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide })
     );
     sunReflection.rotation.x = -Math.PI / 2;
-    sunReflection.position.set(SUN_WORLD_POS.x, 0.2, SUN_WORLD_POS.z);
+    sunReflection.position.set(-80, 0.2, -60);
     scene.add(sunReflection);
 
-    // ─── ТОЧЕЧНЫЙ ИСТОЧНИК СВЕТА (солнечный) ───────────────────────────
-    const sunLight = new THREE.PointLight(0xFFF8DC, 3, 120);
-    sunLight.position.set(SUN_WORLD_POS.x, 0.5, SUN_WORLD_POS.z);
+    const sunLight = new THREE.PointLight(0xFFF8DC, 2, 120);
+    sunLight.position.set(-80, 0.5, -60);
     scene.add(sunLight);
 
-    // ══════════════════════════════════════════════════════════════════
-    // ─── ЛУНА (новый объект, виден только ночью) ───────────────────────
-    // ══════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
+    // ─── ЛУНА ────────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     const moonGroup = new THREE.Group();
     moonGroup.position.set(-40, 40, -120);
-    moonGroup.visible = false; // скрыта днём
+    moonGroup.visible = false;
 
-    // Основной диск луны
     const moonCore = new THREE.Mesh(
       new THREE.SphereGeometry(3, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0xFFFACD,
-        fog: false,       // не скрывать туманом
-        depthWrite: false,
-        depthTest: false,
-      })
+      new THREE.MeshBasicMaterial({ color: 0xFFFACD, fog: false, depthWrite: false, depthTest: false })
     );
     moonCore.renderOrder = 999;
     moonGroup.add(moonCore);
 
-    // Мягкий лунный ореол
     const moonGlow = new THREE.Mesh(
       new THREE.SphereGeometry(5.5, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0xD0E8FF,
-        transparent: true,
-        opacity: 0.18,
-        fog: false,
-        depthWrite: false,
-        depthTest: false,
-      })
+      new THREE.MeshBasicMaterial({ color: 0xD0E8FF, transparent: true, opacity: 0.18, fog: false, depthWrite: false, depthTest: false })
     );
     moonGlow.renderOrder = 998;
     moonGroup.add(moonGlow);
 
     scene.add(moonGroup);
 
-    // ── Лунный свет — мягкая точечная лампа ──────────────────────────
     const moonLight = new THREE.PointLight(0x8899CC, 0, 200);
-    moonLight.position.set(-40, 0.5, -60); // отражение на воде
+    moonLight.position.set(-40, 0.5, -60);
     scene.add(moonLight);
-    // ══════════════════════════════════════════════════════════════════
 
-    // ══════════════════════════════════════════════════════════════════
-    // ─── ЗВЁЗДЫ (PointsMaterial, видны только ночью) ──────────────────
-    // ══════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
+    // ─── ЗВЁЗДЫ ──────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     const STAR_COUNT = 300;
     const starPositions = new Float32Array(STAR_COUNT * 3);
-    const starSizes     = new Float32Array(STAR_COUNT);
-
     for (let i = 0; i < STAR_COUNT; i++) {
       const angle  = Math.random() * Math.PI * 2;
       const radius = Math.random() * 200;
-      starPositions[i * 3 + 0] = Math.cos(angle) * radius;          // X
-      starPositions[i * 3 + 1] = 50 + Math.random() * 50;           // Y: 50–100
-      starPositions[i * 3 + 2] = Math.sin(angle) * radius;          // Z
-      starSizes[i] = 1 + Math.random() * 2;                          // 1–3 px
+      starPositions[i * 3 + 0] = Math.cos(angle) * radius;
+      starPositions[i * 3 + 1] = 50 + Math.random() * 50;
+      starPositions[i * 3 + 2] = Math.sin(angle) * radius;
     }
-
     const starGeometry = new THREE.BufferGeometry();
     starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-
     const starMaterial = new THREE.PointsMaterial({
-      color: 0xFFFFFF,
-      size: 1.8,
-      sizeAttenuation: false, // фиксированный размер в пикселях
-      transparent: true,
-      opacity: 0.9,
-      fog: false,             // звёзды не скрываются туманом
+      color: 0xFFFFFF, size: 1.8, sizeAttenuation: false,
+      transparent: true, opacity: 0.0, fog: false,
     });
-
     const stars = new THREE.Points(starGeometry, starMaterial);
-    stars.visible = false; // скрыты днём
     scene.add(stars);
-    // ══════════════════════════════════════════════════════════════════
 
-    // ─── МОРЕ ──────────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    // ─── МОРЕ ────────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     const alphaCanvas = document.createElement('canvas');
-    alphaCanvas.width  = 512;
-    alphaCanvas.height = 512;
+    alphaCanvas.width = 512; alphaCanvas.height = 512;
     const alphaCtx = alphaCanvas.getContext('2d');
     const gradient = alphaCtx.createRadialGradient(256, 256, 0, 256, 256, 256);
     gradient.addColorStop(0.0,  'rgba(255,255,255,1)');
@@ -303,7 +270,6 @@
     gradient.addColorStop(1.0,  'rgba(0,0,0,0)');
     alphaCtx.fillStyle = gradient;
     alphaCtx.fillRect(0, 0, 512, 512);
-
     const alphaTexture = new THREE.CanvasTexture(alphaCanvas);
 
     const planeGeometry = new THREE.PlaneGeometry(600, 600, 400, 400);
@@ -312,16 +278,9 @@
     planeGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
 
     const planeMaterial = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.92,
-      alphaMap: alphaTexture,
-      alphaTest: 0.0,
-      side: THREE.DoubleSide,
-      roughness: 0.55,
-      metalness: 0.05,
-      flatShading: true,
-      depthWrite: false,
+      vertexColors: true, transparent: true, opacity: 0.92,
+      alphaMap: alphaTexture, alphaTest: 0.0, side: THREE.DoubleSide,
+      roughness: 0.55, metalness: 0.05, flatShading: true, depthWrite: false,
     });
 
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
@@ -333,37 +292,279 @@
     const planePositions = planeGeometry.attributes.position;
     const planeColors    = planeGeometry.attributes.color;
 
-    // ── Дневные цвета воды ───────────────────────────────────────────
-    const dayColors = {
-      deep:  new THREE.Color(0x3A8A9A),
-      mid:   new THREE.Color(0x7EC8E3),
-      crest: new THREE.Color(0xFFFFFF),
-      foam:  new THREE.Color(0xFFF8E7),
-    };
+    // ════════════════════════════════════════════════════════════════
+    // ─── ЦВЕТОВЫЕ ПАЛИТРЫ ФАЗ ────────────────────────────────────────
+    // Каждая фаза хранит все цвета, нужные для lerp-интерполяции.
+    // ════════════════════════════════════════════════════════════════
 
-    // ── Ночные цвета воды (новые) ─────────────────────────────────────
-    const nightColors = {
-      deep:  new THREE.Color(0x0F2A3A), // глубокий синий
-      mid:   new THREE.Color(0x1A3A4A), // тёмно-синий
-      crest: new THREE.Color(0xC0C8D4), // серебристые гребни
-      foam:  new THREE.Color(0xD0D8E8), // чуть светлее серебра
-    };
-
-    const tmpColor = new THREE.Color();
-
-    function waveHeight(wx, wz, t) {
-      const p = 3.0;
-      const w1 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.00875 + wz * 0.020) + t * 0.45)), p) * 2.2;
-      const w2 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.01375 - wz * 0.045) + t * 0.65)), p) * 1.5;
-      const w3 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.03333 + wz * 0.080) + t * 1.10)), p) * 0.7;
-      const w4 = Math.pow(1.0 - Math.abs(Math.sin((-wx * 0.007 + wz * 0.042) + t * 0.30)), p) * 1.0;
-      const raw = (w1 + w2 + w3 + w4) / (2.2 + 1.5 + 0.7 + 1.0);
-      let amplitude = Math.pow(raw, 1.6) * 9.0;
-      amplitude *= (1 + 0.1 * Math.sin(wx * 0.5));
-      return amplitude;
+    // Вспомогательная функция: hex → объект {r, g, b} в диапазоне 0..1
+    function hexToRgb01(hex) {
+      const c = new THREE.Color(hex);
+      return { r: c.r, g: c.g, b: c.b };
     }
 
-    // ─── ЧАЙКА ─────────────────────────────────────────────────────────
+    // Описание всех четырёх ключевых «кадров» суточного цикла
+    const PHASES = {
+      // ── Утро (t = 0) ─────────────────────────────────────────────
+      morning: {
+        skyTop:      new THREE.Color(0xFFB89A), // розово-оранжевое небо
+        skyBottom:   new THREE.Color(0xFFD0AA),
+        fogColor:    new THREE.Color(0xFFD0AA),
+        fogDensity:  0.003,
+        ambientColor: new THREE.Color(0xFFDDBB),
+        ambientIntensity: 0.4,
+        dirColor:    new THREE.Color(0xFFAA66),
+        dirIntensity: 0.8,
+        // Позиция солнца
+        sunX: -80, sunY: 5, sunZ: -60,
+        sunVisible: true,
+        // Цвета волн
+        wDeep:  new THREE.Color(0x6B9FAE),
+        wMid:   new THREE.Color(0x8CB5C4),
+        wCrest: new THREE.Color(0xFFEEDD),
+        wFoam:  new THREE.Color(0xFFFFFF),
+        // Луна/звёзды
+        moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
+        // Эмодзи для индикатора
+        label: '🌅 Утро',
+      },
+      // ── День (t = 90..270 центр) ──────────────────────────────────
+      day: {
+        skyTop:      new THREE.Color(0x7EC8E3),
+        skyBottom:   new THREE.Color(0xC8E8F5),
+        fogColor:    new THREE.Color(0xE8D5B7),
+        fogDensity:  0.0025,
+        ambientColor: new THREE.Color(0xFFFFFF),
+        ambientIntensity: 0.6,
+        dirColor:    new THREE.Color(0xFFF8E7),
+        dirIntensity: 1.4,
+        sunX: 0, sunY: 80, sunZ: -100,
+        sunVisible: true,
+        wDeep:  new THREE.Color(0x3A8A9A),
+        wMid:   new THREE.Color(0x7EC8E3),
+        wCrest: new THREE.Color(0xFFFFFF),
+        wFoam:  new THREE.Color(0xFFF8E7),
+        moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
+        label: '☀ День',
+      },
+      // ── Вечер (t = 310 «центр» вечера) ───────────────────────────
+      evening: {
+        skyTop:      new THREE.Color(0xFF9F8B),
+        skyBottom:   new THREE.Color(0xFFBB99),
+        fogColor:    new THREE.Color(0xFFAA77),
+        fogDensity:  0.003,
+        ambientColor: new THREE.Color(0xFFCCAA),
+        ambientIntensity: 0.45,
+        dirColor:    new THREE.Color(0xFFB347),
+        dirIntensity: 0.9,
+        sunX: 80, sunY: 5, sunZ: -60,
+        sunVisible: true,
+        wDeep:  new THREE.Color(0x8A6A50),
+        wMid:   new THREE.Color(0xC4A882),
+        wCrest: new THREE.Color(0xFFCCAA),
+        wFoam:  new THREE.Color(0xFFEEDD),
+        moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
+        label: '🌇 Вечер',
+      },
+      // ── Ночь (t = 350 «центр» ночи) ──────────────────────────────
+      night: {
+        skyTop:      new THREE.Color(0x1A2A40),
+        skyBottom:   new THREE.Color(0x0F1A2A),
+        fogColor:    new THREE.Color(0x1A2A40),
+        fogDensity:  0.004,
+        ambientColor: new THREE.Color(0x8899AA),
+        ambientIntensity: 0.15,
+        dirColor:    new THREE.Color(0x334466),
+        dirIntensity: 0.2,
+        sunX: 0, sunY: -30, sunZ: -100, // под горизонтом
+        sunVisible: false,
+        wDeep:  new THREE.Color(0x0F2A3A),
+        wMid:   new THREE.Color(0x1A3A4A),
+        wCrest: new THREE.Color(0xC0C8D4),
+        wFoam:  new THREE.Color(0xD0D8E8),
+        moonVisible: true, starsOpacity: 0.9, moonIntensity: 1.5,
+        label: '🌙 Ночь',
+      },
+    };
+
+    // ════════════════════════════════════════════════════════════════
+    // ─── ФУНКЦИИ ИНТЕРПОЛЯЦИИ ────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+
+    // Плавный шаг (smoothstep) для более органичных переходов
+    function smoothstep(x) {
+      const c = Math.max(0, Math.min(1, x));
+      return c * c * (3 - 2 * c);
+    }
+
+    // Линейная интерполяция числа
+    function lerpNum(a, b, t) { return a + (b - a) * t; }
+
+    // Интерполяция THREE.Color (in-place в target)
+    const _tmpColor = new THREE.Color();
+    function lerpColor(out, a, b, t) {
+      out.set(
+        lerpNum(a.r, b.r, t),
+        lerpNum(a.g, b.g, t),
+        lerpNum(a.b, b.b, t),
+      );
+    }
+
+    // Объект «текущее состояние» — заполняется каждый кадр
+    const state = {
+      fogColor:    new THREE.Color(),
+      fogDensity:  0.003,
+      ambientColor: new THREE.Color(),
+      ambientIntensity: 0.4,
+      dirColor:    new THREE.Color(),
+      dirIntensity: 1.0,
+      sunX: -80, sunY: 5, sunZ: -60,
+      sunVisible: true,
+      skyHex: '#FFB89A',   // строка для CSS body.style.background
+      wDeep:  new THREE.Color(),
+      wMid:   new THREE.Color(),
+      wCrest: new THREE.Color(),
+      wFoam:  new THREE.Color(),
+      moonVisible: false,
+      starsOpacity: 0.0,
+      moonIntensity: 0,
+      label: '🌅 Утро',
+    };
+
+    // ════════════════════════════════════════════════════════════════
+    // ─── ЛОГИКА ЦИКЛА (360 секунд = полный день) ──────────────────────
+    //
+    //  Граничные точки (в секундах):
+    //   0   — начало утра
+    //   90  — конец утра / начало дня
+    //   270 — конец дня / начало вечера
+    //   340 — конец вечера / начало ночи
+    //   360 — конец ночи / снова утро (= 0)
+    //
+    //  Переходы занимают 20 секунд на каждой границе,
+    //  т.е. ±10 секунд вокруг точки перехода.
+    // ════════════════════════════════════════════════════════════════
+
+    // Вспомогательная функция: вычисляет t (0..1) прогресс «перехода»
+    // на границе boundary с шириной half (по умолчанию 10 сек)
+    function transitionT(gameTime, boundary, half) {
+      return smoothstep((gameTime - (boundary - half)) / (half * 2));
+    }
+
+    // Интерполирует все поля объекта state между двумя фазами
+    function blendPhases(a, b, t) {
+      lerpColor(state.fogColor,    a.fogColor,    b.fogColor,    t);
+      state.fogDensity         = lerpNum(a.fogDensity,         b.fogDensity,         t);
+      lerpColor(state.ambientColor, a.ambientColor, b.ambientColor, t);
+      state.ambientIntensity   = lerpNum(a.ambientIntensity,   b.ambientIntensity,   t);
+      lerpColor(state.dirColor,    a.dirColor,    b.dirColor,    t);
+      state.dirIntensity       = lerpNum(a.dirIntensity,       b.dirIntensity,       t);
+      state.sunX               = lerpNum(a.sunX, b.sunX, t);
+      state.sunY               = lerpNum(a.sunY, b.sunY, t);
+      state.sunZ               = lerpNum(a.sunZ, b.sunZ, t);
+      state.sunVisible         = b.sunVisible || a.sunVisible; // виден, если хоть одна фаза требует
+      lerpColor(state.wDeep,  a.wDeep,  b.wDeep,  t);
+      lerpColor(state.wMid,   a.wMid,   b.wMid,   t);
+      lerpColor(state.wCrest, a.wCrest, b.wCrest, t);
+      lerpColor(state.wFoam,  a.wFoam,  b.wFoam,  t);
+      state.starsOpacity    = lerpNum(a.starsOpacity,  b.starsOpacity,  t);
+      state.moonIntensity   = lerpNum(a.moonIntensity, b.moonIntensity, t);
+      // Луна видна, если её непрозрачность > 0
+      state.moonVisible     = state.moonIntensity > 0.01 || b.moonVisible;
+      // Метка фазы: показываем целевую, если перешли за 50%
+      state.label = t > 0.5 ? b.label : a.label;
+
+      // ── Цвет неба (CSS background) — интерполируем hex через THREE.Color
+      const skyA = new THREE.Color().copy(a.skyTop);
+      const skyB = new THREE.Color().copy(b.skyTop);
+      skyA.lerp(skyB, t);
+      // Формируем gradient от skyTop к skyBottom
+      const topA  = new THREE.Color().copy(a.skyTop).lerp(b.skyTop, t);
+      const botA  = new THREE.Color().copy(a.skyBottom).lerp(b.skyBottom, t);
+      const topHex = '#' + topA.getHexString();
+      const botHex = '#' + botA.getHexString();
+      document.body.style.background = `linear-gradient(to bottom, ${topHex} 0%, ${botHex} 100%)`;
+    }
+
+    // ── Главная функция: вычисляет state по gameTime ──────────────────
+    function updateStateFromTime(gt) {
+      const HALF = 10; // секунд на краю зоны перехода
+
+      if (gt < 90 - HALF) {
+        // ── Утро (устойчивая фаза) ───────────────────────────────
+        blendPhases(PHASES.morning, PHASES.morning, 0);
+        state.label = PHASES.morning.label;
+
+      } else if (gt < 90 + HALF) {
+        // ── Переход Утро → День ───────────────────────────────────
+        blendPhases(PHASES.morning, PHASES.day, transitionT(gt, 90, HALF));
+
+      } else if (gt < 270 - HALF) {
+        // ── День (устойчивая фаза) ────────────────────────────────
+        blendPhases(PHASES.day, PHASES.day, 0);
+        state.label = PHASES.day.label;
+
+      } else if (gt < 270 + HALF) {
+        // ── Переход День → Вечер ─────────────────────────────────
+        blendPhases(PHASES.day, PHASES.evening, transitionT(gt, 270, HALF));
+
+      } else if (gt < 340 - HALF) {
+        // ── Вечер (устойчивая фаза) ───────────────────────────────
+        blendPhases(PHASES.evening, PHASES.evening, 0);
+        state.label = PHASES.evening.label;
+
+      } else if (gt < 340 + HALF) {
+        // ── Переход Вечер → Ночь ─────────────────────────────────
+        blendPhases(PHASES.evening, PHASES.night, transitionT(gt, 340, HALF));
+
+      } else if (gt < 360 - HALF) {
+        // ── Ночь (устойчивая фаза) ────────────────────────────────
+        blendPhases(PHASES.night, PHASES.night, 0);
+        state.label = PHASES.night.label;
+
+      } else {
+        // ── Переход Ночь → Утро (конец/начало цикла) ─────────────
+        blendPhases(PHASES.night, PHASES.morning, transitionT(gt, 360, HALF));
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // ─── ПРИМЕНЕНИЕ state К ОБЪЕКТАМ СЦЕНЫ ────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    function applyStateToScene() {
+      // Туман
+      scene.fog.color.copy(state.fogColor);
+      scene.fog.density = state.fogDensity;
+
+      // Ambient
+      ambientLight.color.copy(state.ambientColor);
+      ambientLight.intensity = state.ambientIntensity;
+
+      // Направленный свет
+      dirLight.color.copy(state.dirColor);
+      dirLight.intensity = state.dirIntensity;
+      dirLight.position.set(state.sunX, state.sunY, state.sunZ);
+
+      // Солнце: позиция и видимость
+      sunGroup.position.set(state.sunX, state.sunY, state.sunZ);
+      sunGroup.visible      = state.sunVisible;
+      sunReflection.visible = state.sunVisible;
+      sunReflection.position.x = state.sunX;
+      sunReflection.position.z = state.sunZ;
+      sunLight.position.set(state.sunX, 0.5, state.sunZ);
+      sunLight.visible = state.sunVisible;
+
+      // Луна
+      moonGroup.visible   = state.moonVisible;
+      moonLight.intensity = state.moonIntensity;
+
+      // Звёзды
+      starMaterial.opacity = state.starsOpacity;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // ─── ЧАЙКА ───────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     function createWing(mirrorX = false) {
       const shape = new THREE.Shape();
       const sign  = mirrorX ? -1 : 1;
@@ -480,91 +681,21 @@
       clouds.push(cloud);
     }
 
-    // ─── УПРАВЛЕНИЕ ────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    // ─── УПРАВЛЕНИЕ ──────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     const keys = {};
-    window.addEventListener('keydown', e => {
-      keys[e.code] = true;
+    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('keyup',   e => { keys[e.code] = false; });
 
-      // ══════════════════════════════════════════════════════════════
-      // ── Переключение дня/ночи по клавише N ───────────────────────
-      // ══════════════════════════════════════════════════════════════
-      if (e.code === 'KeyN') {
-        toggleDayNight();
-      }
-    });
-    window.addEventListener('keyup', e => { keys[e.code] = false; });
+    // ── Игровое время: 0..360, прибавляется на каждом кадре ───────────
+    let gameTime = 0;          // секунды (логические)
+    const CYCLE  = 360;        // полная длина цикла в секундах
+    const BASE_SPEED = 1;      // 1 «секунда» за реальную секунду = 6 мин цикл
+    // (THREE.Clock.getDelta возвращает секунды реального времени)
 
-    // ══════════════════════════════════════════════════════════════════
-    // ─── ПЕРЕМЕННАЯ РЕЖИМА и ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ─────────────────────
-    // ══════════════════════════════════════════════════════════════════
-    let isNight = false;
-    const timeIndicator = document.getElementById('time-indicator');
-
-    function toggleDayNight() {
-      isNight = !isNight;
-
-      if (isNight) {
-        // ── Переключаем на ночь ────────────────────────────────────
-
-        // Фон страницы
-        document.body.classList.add('night');
-
-        // Туман: тёмный, чуть плотнее
-        scene.fog = new THREE.FogExp2(0x1A2A40, 0.004);
-
-        // Освещение: холодный голубоватый ambient
-        ambientLight.color.set(0x8899AA);
-        ambientLight.intensity = 0.2;
-
-        // Направленный свет: холодный синий, слабый
-        dirLight.color.set(0x8899AA);
-        dirLight.intensity = 0.3;
-
-        // Солнце: скрыть
-        sunGroup.visible      = false;
-        sunReflection.visible = false;
-        sunLight.visible      = false;
-
-        // Луна и звёзды: показать
-        moonGroup.visible = true;
-        stars.visible     = true;
-        moonLight.intensity = 1.5;
-
-        // Индикатор
-        timeIndicator.textContent = '☽ Ночь';
-
-      } else {
-        // ── Переключаем на день ────────────────────────────────────
-
-        // Фон страницы
-        document.body.classList.remove('night');
-
-        // Туман: дневной
-        scene.fog = new THREE.FogExp2(0xC8E8F5, 0.003);
-
-        // Освещение: тёплый дневной ambient
-        ambientLight.color.set(0xffffff);
-        ambientLight.intensity = 0.6;
-
-        // Направленный свет: солнечный тёплый
-        dirLight.color.set(0xFFE4B5);
-        dirLight.intensity = 1.2;
-
-        // Солнце: показать
-        sunGroup.visible      = true;
-        sunReflection.visible = true;
-        sunLight.visible      = true;
-
-        // Луна и звёзды: скрыть
-        moonGroup.visible   = false;
-        stars.visible       = false;
-        moonLight.intensity = 0;
-
-        // Индикатор
-        timeIndicator.textContent = '☀ День';
-      }
-    }
-    // ══════════════════════════════════════════════════════════════════
+    // Клавиша N — ускорение x10 (для тестирования)
+    // Зажата — 10× быстрее, отпущена — нормальная скорость
 
     const playerGull = seagulls[0];
     playerGull.scale.setScalar(1.2);
@@ -579,26 +710,46 @@
     });
 
     const clock = new THREE.Clock();
+    const timeIndicator = document.getElementById('time-indicator');
 
+    // ─── Волны ─────────────────────────────────────────────────────────
+    function waveHeight(wx, wz, t) {
+      const p = 3.0;
+      const w1 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.00875 + wz * 0.020) + t * 0.45)), p) * 2.2;
+      const w2 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.01375 - wz * 0.045) + t * 0.65)), p) * 1.5;
+      const w3 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.03333 + wz * 0.080) + t * 1.10)), p) * 0.7;
+      const w4 = Math.pow(1.0 - Math.abs(Math.sin((-wx * 0.007 + wz * 0.042) + t * 0.30)), p) * 1.0;
+      const raw = (w1 + w2 + w3 + w4) / (2.2 + 1.5 + 0.7 + 1.0);
+      let amplitude = Math.pow(raw, 1.6) * 9.0;
+      amplitude *= (1 + 0.1 * Math.sin(wx * 0.5));
+      return amplitude;
+    }
+
+    const tmpColor = new THREE.Color();
+
+    // ════════════════════════════════════════════════════════════════
+    // ─── ГЛАВНЫЙ ЦИКЛ АНИМАЦИИ ────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
     function animate() {
       requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
+      const delta = clock.getDelta();      // реальные секунды с прошлого кадра
+      const t     = clock.elapsedTime;    // общее реальное время (для волн, etc.)
 
-      // ── Позиция солнца ────────────────────────────────────────────────
-      sunGroup.position.set(SUN_WORLD_POS.x, SUN_WORLD_POS.y, SUN_WORLD_POS.z);
+      // ── Обновляем игровое время ────────────────────────────────────
+      const speed = keys['KeyN'] ? BASE_SPEED * 10 : BASE_SPEED;
+      gameTime = (gameTime + delta * speed) % CYCLE;
 
-      sunReflection.position.x = sunGroup.position.x;
-      sunReflection.position.z = sunGroup.position.z;
-      sunReflection.position.y = 0.2;
+      // ── Вычисляем состояние всех параметров из gameTime ───────────
+      updateStateFromTime(gameTime);
 
-      sunLight.position.x = sunGroup.position.x;
-      sunLight.position.z = sunGroup.position.z;
-      sunLight.position.y = 0.5;
+      // ── Применяем состояние к объектам сцены ──────────────────────
+      applyStateToScene();
 
-      // ── Волны — цвет зависит от режима ────────────────────────────────
-      // Выбираем нужный набор цветов в зависимости от isNight
-      const wc = isNight ? nightColors : dayColors;
+      // ── Обновляем индикатор ────────────────────────────────────────
+      const gt = Math.floor(gameTime);
+      timeIndicator.textContent = `${state.label} · ${gt}с`;
 
+      // ── Волны: цвет зависит от текущих wDeep/wMid/wCrest/wFoam ───
       const maxHeight  = 9.0;
       const midLevel   = maxHeight * 0.35;
       const crestLevel = maxHeight * 0.72;
@@ -612,15 +763,15 @@
 
         if (h >= foamLevel) {
           const t2 = Math.min((h - foamLevel) / (maxHeight - foamLevel), 1.0);
-          tmpColor.copy(wc.crest).lerp(wc.foam, t2);
+          tmpColor.copy(state.wCrest).lerp(state.wFoam, t2);
         } else if (h >= crestLevel) {
           const t2 = (h - crestLevel) / (foamLevel - crestLevel);
-          tmpColor.copy(wc.mid).lerp(wc.crest, Math.pow(t2, 0.5));
+          tmpColor.copy(state.wMid).lerp(state.wCrest, Math.pow(t2, 0.5));
         } else if (h >= midLevel) {
           const t2 = (h - midLevel) / (crestLevel - midLevel);
-          tmpColor.copy(wc.deep).lerp(wc.mid, t2);
+          tmpColor.copy(state.wDeep).lerp(state.wMid, t2);
         } else {
-          tmpColor.copy(wc.deep);
+          tmpColor.copy(state.wDeep);
         }
         planeColors.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
       }
@@ -628,7 +779,7 @@
       planeColors.needsUpdate    = true;
       planeGeometry.computeVertexNormals();
 
-      // ── Облака ─────────────────────────────────────────────────────────
+      // ── Облака ────────────────────────────────────────────────────
       clouds.forEach(cloud => {
         cloud.userData.angle += cloud.userData.speed;
         cloud.position.x = Math.cos(cloud.userData.angle) * cloud.userData.dist;
@@ -636,7 +787,7 @@
         cloud.position.y += Math.sin(t * 0.3 + cloud.userData.angle) * 0.002;
       });
 
-      // ── NPC-чайки ──────────────────────────────────────────────────────
+      // ── NPC-чайки ─────────────────────────────────────────────────
       seagulls.forEach(gull => {
         if (gull.userData.isPlayer) return;
         gull.userData.orbitAngle += gull.userData.speed;
@@ -651,7 +802,7 @@
         gull.userData.wingR.rotation.x = -wingAngle;
       });
 
-      // ── Игрок ──────────────────────────────────────────────────────────
+      // ── Игрок (управление) ────────────────────────────────────────
       const moveSpeed = 0.08;
       const turnSpeed = 0.03;
       if (keys['ArrowLeft'])  playerGull.rotation.y += turnSpeed;
@@ -670,7 +821,7 @@
       playerGull.userData.wingL.rotation.x =  pWingAngle;
       playerGull.userData.wingR.rotation.x = -pWingAngle;
 
-      // ── Камера ─────────────────────────────────────────────────────────
+      // ── Камера ────────────────────────────────────────────────────
       const offset = new THREE.Vector3(
         Math.sin(playerGull.rotation.y) * 20, 6,
         Math.cos(playerGull.rotation.y) * 20
