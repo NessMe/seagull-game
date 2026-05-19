@@ -23,7 +23,6 @@
       min-height: 100vh;
       overflow: hidden;
       font-family: 'Montserrat', sans-serif;
-      /* Фон управляется через JS — CSS-переменная --sky-bg */
       background: #FFB89A;
       transition: background 2s linear;
     }
@@ -106,7 +105,6 @@
       pointer-events: none;
       animation: fadeIn 2s ease 2s forwards;
       opacity: 0;
-      /* Минимальная ширина, чтобы текст не прыгал */
       min-width: 10em;
       text-align: center;
     }
@@ -121,10 +119,8 @@
     <div class="subtitle">над морем</div>
   </div>
 
-  <!-- Подсказка: N — ускорение времени x10 для теста -->
   <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт · N — ускорить время ×10</div>
 
-  <!-- Индикатор фазы и игрового времени -->
   <div id="time-indicator">☀ Утро · 0с</div>
 
   <script type="module">
@@ -294,20 +290,12 @@
 
     // ════════════════════════════════════════════════════════════════
     // ─── ЦВЕТОВЫЕ ПАЛИТРЫ ФАЗ ────────────────────────────────────────
-    // Каждая фаза хранит все цвета, нужные для lerp-интерполяции.
     // ════════════════════════════════════════════════════════════════
 
-    // Вспомогательная функция: hex → объект {r, g, b} в диапазоне 0..1
-    function hexToRgb01(hex) {
-      const c = new THREE.Color(hex);
-      return { r: c.r, g: c.g, b: c.b };
-    }
-
-    // Описание всех четырёх ключевых «кадров» суточного цикла
     const PHASES = {
-      // ── Утро (t = 0) ─────────────────────────────────────────────
+      // ── Утро (0–70) ──────────────────────────────────────────────
       morning: {
-        skyTop:      new THREE.Color(0xFFB89A), // розово-оранжевое небо
+        skyTop:      new THREE.Color(0xFFB89A),
         skyBottom:   new THREE.Color(0xFFD0AA),
         fogColor:    new THREE.Color(0xFFD0AA),
         fogDensity:  0.003,
@@ -315,20 +303,17 @@
         ambientIntensity: 0.4,
         dirColor:    new THREE.Color(0xFFAA66),
         dirIntensity: 0.8,
-        // Позиция солнца
+        // Солнце у горизонта слева (восход)
         sunX: -80, sunY: 5, sunZ: -60,
         sunVisible: true,
-        // Цвета волн
         wDeep:  new THREE.Color(0x6B9FAE),
         wMid:   new THREE.Color(0x8CB5C4),
         wCrest: new THREE.Color(0xFFEEDD),
         wFoam:  new THREE.Color(0xFFFFFF),
-        // Луна/звёзды
         moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
-        // Эмодзи для индикатора
         label: '🌅 Утро',
       },
-      // ── День (t = 90..270 центр) ──────────────────────────────────
+      // ── День (70–230) ─────────────────────────────────────────────
       day: {
         skyTop:      new THREE.Color(0x7EC8E3),
         skyBottom:   new THREE.Color(0xC8E8F5),
@@ -338,6 +323,7 @@
         ambientIntensity: 0.6,
         dirColor:    new THREE.Color(0xFFF8E7),
         dirIntensity: 1.4,
+        // Солнце высоко в зените
         sunX: 0, sunY: 80, sunZ: -100,
         sunVisible: true,
         wDeep:  new THREE.Color(0x3A8A9A),
@@ -347,7 +333,7 @@
         moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
         label: '☀ День',
       },
-      // ── Вечер (t = 310 «центр» вечера) ───────────────────────────
+      // ── Вечер (230–300) ───────────────────────────────────────────
       evening: {
         skyTop:      new THREE.Color(0xFF9F8B),
         skyBottom:   new THREE.Color(0xFFBB99),
@@ -357,6 +343,7 @@
         ambientIntensity: 0.45,
         dirColor:    new THREE.Color(0xFFB347),
         dirIntensity: 0.9,
+        // Солнце у горизонта справа (закат)
         sunX: 80, sunY: 5, sunZ: -60,
         sunVisible: true,
         wDeep:  new THREE.Color(0x8A6A50),
@@ -366,7 +353,7 @@
         moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
         label: '🌇 Вечер',
       },
-      // ── Ночь (t = 350 «центр» ночи) ──────────────────────────────
+      // ── Ночь (300–360) ────────────────────────────────────────────
       night: {
         skyTop:      new THREE.Color(0x1A2A40),
         skyBottom:   new THREE.Color(0x0F1A2A),
@@ -376,7 +363,8 @@
         ambientIntensity: 0.15,
         dirColor:    new THREE.Color(0x334466),
         dirIntensity: 0.2,
-        sunX: 0, sunY: -30, sunZ: -100, // под горизонтом
+        // Солнце под горизонтом
+        sunX: 0, sunY: -30, sunZ: -100,
         sunVisible: false,
         wDeep:  new THREE.Color(0x0F2A3A),
         wMid:   new THREE.Color(0x1A3A4A),
@@ -391,17 +379,13 @@
     // ─── ФУНКЦИИ ИНТЕРПОЛЯЦИИ ────────────────────────────────────────
     // ════════════════════════════════════════════════════════════════
 
-    // Плавный шаг (smoothstep) для более органичных переходов
     function smoothstep(x) {
       const c = Math.max(0, Math.min(1, x));
       return c * c * (3 - 2 * c);
     }
 
-    // Линейная интерполяция числа
     function lerpNum(a, b, t) { return a + (b - a) * t; }
 
-    // Интерполяция THREE.Color (in-place в target)
-    const _tmpColor = new THREE.Color();
     function lerpColor(out, a, b, t) {
       out.set(
         lerpNum(a.r, b.r, t),
@@ -410,7 +394,6 @@
       );
     }
 
-    // Объект «текущее состояние» — заполняется каждый кадр
     const state = {
       fogColor:    new THREE.Color(),
       fogDensity:  0.003,
@@ -420,7 +403,7 @@
       dirIntensity: 1.0,
       sunX: -80, sunY: 5, sunZ: -60,
       sunVisible: true,
-      skyHex: '#FFB89A',   // строка для CSS body.style.background
+      skyHex: '#FFB89A',
       wDeep:  new THREE.Color(),
       wMid:   new THREE.Color(),
       wCrest: new THREE.Color(),
@@ -432,26 +415,22 @@
     };
 
     // ════════════════════════════════════════════════════════════════
-    // ─── ЛОГИКА ЦИКЛА (360 секунд = полный день) ──────────────────────
+    // ─── ЛОГИКА ЦИКЛА ────────────────────────────────────────────────
     //
-    //  Граничные точки (в секундах):
+    //  Новые границы фаз (секунды):
     //   0   — начало утра
-    //   90  — конец утра / начало дня
-    //   270 — конец дня / начало вечера
-    //   340 — конец вечера / начало ночи
+    //   70  — конец утра / начало дня
+    //   230 — конец дня / начало вечера
+    //   300 — конец вечера / начало ночи
     //   360 — конец ночи / снова утро (= 0)
     //
-    //  Переходы занимают 20 секунд на каждой границе,
-    //  т.е. ±10 секунд вокруг точки перехода.
+    //  Переходы: ±10 секунд вокруг каждой границы (20 сек каждый).
     // ════════════════════════════════════════════════════════════════
 
-    // Вспомогательная функция: вычисляет t (0..1) прогресс «перехода»
-    // на границе boundary с шириной half (по умолчанию 10 сек)
     function transitionT(gameTime, boundary, half) {
       return smoothstep((gameTime - (boundary - half)) / (half * 2));
     }
 
-    // Интерполирует все поля объекта state между двумя фазами
     function blendPhases(a, b, t) {
       lerpColor(state.fogColor,    a.fogColor,    b.fogColor,    t);
       state.fogDensity         = lerpNum(a.fogDensity,         b.fogDensity,         t);
@@ -462,23 +441,16 @@
       state.sunX               = lerpNum(a.sunX, b.sunX, t);
       state.sunY               = lerpNum(a.sunY, b.sunY, t);
       state.sunZ               = lerpNum(a.sunZ, b.sunZ, t);
-      state.sunVisible         = b.sunVisible || a.sunVisible; // виден, если хоть одна фаза требует
+      state.sunVisible         = b.sunVisible || a.sunVisible;
       lerpColor(state.wDeep,  a.wDeep,  b.wDeep,  t);
       lerpColor(state.wMid,   a.wMid,   b.wMid,   t);
       lerpColor(state.wCrest, a.wCrest, b.wCrest, t);
       lerpColor(state.wFoam,  a.wFoam,  b.wFoam,  t);
       state.starsOpacity    = lerpNum(a.starsOpacity,  b.starsOpacity,  t);
       state.moonIntensity   = lerpNum(a.moonIntensity, b.moonIntensity, t);
-      // Луна видна, если её непрозрачность > 0
       state.moonVisible     = state.moonIntensity > 0.01 || b.moonVisible;
-      // Метка фазы: показываем целевую, если перешли за 50%
       state.label = t > 0.5 ? b.label : a.label;
 
-      // ── Цвет неба (CSS background) — интерполируем hex через THREE.Color
-      const skyA = new THREE.Color().copy(a.skyTop);
-      const skyB = new THREE.Color().copy(b.skyTop);
-      skyA.lerp(skyB, t);
-      // Формируем gradient от skyTop к skyBottom
       const topA  = new THREE.Color().copy(a.skyTop).lerp(b.skyTop, t);
       const botA  = new THREE.Color().copy(a.skyBottom).lerp(b.skyBottom, t);
       const topHex = '#' + topA.getHexString();
@@ -487,35 +459,36 @@
     }
 
     // ── Главная функция: вычисляет state по gameTime ──────────────────
+    // Новые границы: 0 | 70 | 230 | 300 | 360
     function updateStateFromTime(gt) {
       const HALF = 10; // секунд на краю зоны перехода
 
-      if (gt < 90 - HALF) {
+      if (gt < 70 - HALF) {
         // ── Утро (устойчивая фаза) ───────────────────────────────
         blendPhases(PHASES.morning, PHASES.morning, 0);
         state.label = PHASES.morning.label;
 
-      } else if (gt < 90 + HALF) {
+      } else if (gt < 70 + HALF) {
         // ── Переход Утро → День ───────────────────────────────────
-        blendPhases(PHASES.morning, PHASES.day, transitionT(gt, 90, HALF));
+        blendPhases(PHASES.morning, PHASES.day, transitionT(gt, 70, HALF));
 
-      } else if (gt < 270 - HALF) {
+      } else if (gt < 230 - HALF) {
         // ── День (устойчивая фаза) ────────────────────────────────
         blendPhases(PHASES.day, PHASES.day, 0);
         state.label = PHASES.day.label;
 
-      } else if (gt < 270 + HALF) {
+      } else if (gt < 230 + HALF) {
         // ── Переход День → Вечер ─────────────────────────────────
-        blendPhases(PHASES.day, PHASES.evening, transitionT(gt, 270, HALF));
+        blendPhases(PHASES.day, PHASES.evening, transitionT(gt, 230, HALF));
 
-      } else if (gt < 340 - HALF) {
+      } else if (gt < 300 - HALF) {
         // ── Вечер (устойчивая фаза) ───────────────────────────────
         blendPhases(PHASES.evening, PHASES.evening, 0);
         state.label = PHASES.evening.label;
 
-      } else if (gt < 340 + HALF) {
+      } else if (gt < 300 + HALF) {
         // ── Переход Вечер → Ночь ─────────────────────────────────
-        blendPhases(PHASES.evening, PHASES.night, transitionT(gt, 340, HALF));
+        blendPhases(PHASES.evening, PHASES.night, transitionT(gt, 300, HALF));
 
       } else if (gt < 360 - HALF) {
         // ── Ночь (устойчивая фаза) ────────────────────────────────
@@ -532,20 +505,16 @@
     // ─── ПРИМЕНЕНИЕ state К ОБЪЕКТАМ СЦЕНЫ ────────────────────────────
     // ════════════════════════════════════════════════════════════════
     function applyStateToScene() {
-      // Туман
       scene.fog.color.copy(state.fogColor);
       scene.fog.density = state.fogDensity;
 
-      // Ambient
       ambientLight.color.copy(state.ambientColor);
       ambientLight.intensity = state.ambientIntensity;
 
-      // Направленный свет
       dirLight.color.copy(state.dirColor);
       dirLight.intensity = state.dirIntensity;
       dirLight.position.set(state.sunX, state.sunY, state.sunZ);
 
-      // Солнце: позиция и видимость
       sunGroup.position.set(state.sunX, state.sunY, state.sunZ);
       sunGroup.visible      = state.sunVisible;
       sunReflection.visible = state.sunVisible;
@@ -554,11 +523,9 @@
       sunLight.position.set(state.sunX, 0.5, state.sunZ);
       sunLight.visible = state.sunVisible;
 
-      // Луна
       moonGroup.visible   = state.moonVisible;
       moonLight.intensity = state.moonIntensity;
 
-      // Звёзды
       starMaterial.opacity = state.starsOpacity;
     }
 
@@ -688,14 +655,9 @@
     window.addEventListener('keydown', e => { keys[e.code] = true; });
     window.addEventListener('keyup',   e => { keys[e.code] = false; });
 
-    // ── Игровое время: 0..360, прибавляется на каждом кадре ───────────
-    let gameTime = 0;          // секунды (логические)
-    const CYCLE  = 360;        // полная длина цикла в секундах
-    const BASE_SPEED = 1;      // 1 «секунда» за реальную секунду = 6 мин цикл
-    // (THREE.Clock.getDelta возвращает секунды реального времени)
-
-    // Клавиша N — ускорение x10 (для тестирования)
-    // Зажата — 10× быстрее, отпущена — нормальная скорость
+    let gameTime = 0;
+    const CYCLE  = 360;
+    const BASE_SPEED = 1;
 
     const playerGull = seagulls[0];
     playerGull.scale.setScalar(1.2);
@@ -732,24 +694,22 @@
     // ════════════════════════════════════════════════════════════════
     function animate() {
       requestAnimationFrame(animate);
-      const delta = clock.getDelta();      // реальные секунды с прошлого кадра
-      const t     = clock.elapsedTime;    // общее реальное время (для волн, etc.)
+      const delta = clock.getDelta();
+      const t     = clock.elapsedTime;
 
       // ── Обновляем игровое время ────────────────────────────────────
       const speed = keys['KeyN'] ? BASE_SPEED * 10 : BASE_SPEED;
       gameTime = (gameTime + delta * speed) % CYCLE;
 
-      // ── Вычисляем состояние всех параметров из gameTime ───────────
+      // ── Вычисляем и применяем состояние ───────────────────────────
       updateStateFromTime(gameTime);
-
-      // ── Применяем состояние к объектам сцены ──────────────────────
       applyStateToScene();
 
       // ── Обновляем индикатор ────────────────────────────────────────
       const gt = Math.floor(gameTime);
       timeIndicator.textContent = `${state.label} · ${gt}с`;
 
-      // ── Волны: цвет зависит от текущих wDeep/wMid/wCrest/wFoam ───
+      // ── Волны ─────────────────────────────────────────────────────
       const maxHeight  = 9.0;
       const midLevel   = maxHeight * 0.35;
       const crestLevel = maxHeight * 0.72;
