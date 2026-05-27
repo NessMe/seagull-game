@@ -4,134 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Чайка</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet" />
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-      }
-    }
-  </script>
-
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      min-height: 100vh;
-      overflow: hidden;
-      font-family: 'Montserrat', sans-serif;
-      background: #FFB89A;
-      transition: background 2s linear;
-    }
-    #canvas-container {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 0;
-    }
-    #title-overlay {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 10;
-      text-align: center;
-      pointer-events: none;
-      user-select: none;
-    }
-    #title-overlay h1 {
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 300;
-      font-size: clamp(3rem, 10vw, 8rem);
-      color: #ffffff;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      text-shadow:
-        0 2px 30px rgba(120, 180, 220, 0.6),
-        0 0 80px rgba(100, 160, 210, 0.3);
-      animation: fadeIn 2s ease forwards;
-      opacity: 0;
-    }
-    #title-overlay .subtitle {
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 300;
-      font-size: clamp(0.6rem, 2vw, 1rem);
-      color: rgba(255, 255, 255, 0.75);
-      letter-spacing: 0.5em;
-      text-transform: uppercase;
-      margin-top: 0.5em;
-      animation: fadeIn 2s ease 0.8s forwards;
-      opacity: 0;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    #controls-hint {
-      position: fixed;
-      bottom: 2rem; left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 300;
-      font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.55);
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      animation: fadeIn 2s ease 1.5s forwards;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    /* ── Индикатор времени суток ── */
-    #time-indicator {
-      position: fixed;
-      top: 1.2rem;
-      right: 1.5rem;
-      z-index: 20;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 300;
-      font-size: 0.75rem;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.9);
-      background: rgba(0, 0, 0, 0.22);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      padding: 0.4em 0.9em;
-      border-radius: 2em;
-      backdrop-filter: blur(6px);
-      pointer-events: none;
-      animation: fadeIn 2s ease 2s forwards;
-      opacity: 0;
-      min-width: 10em;
-      text-align: center;
-    }
+    body { min-height:100vh; overflow:hidden; font-family:'Montserrat',sans-serif; background:#FFB89A; transition:background 2s linear; }
+    #canvas-container { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+    #title-overlay { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; pointer-events:none; user-select:none; }
+    #title-overlay h1 { font-family:'Montserrat',sans-serif; font-weight:300; font-size:clamp(3rem,10vw,8rem); color:#fff; letter-spacing:.25em; text-transform:uppercase; text-shadow:0 2px 30px rgba(120,180,220,.6),0 0 80px rgba(100,160,210,.3); animation:fadeIn 2s ease forwards; opacity:0; }
+    #title-overlay .subtitle { font-family:'Montserrat',sans-serif; font-weight:300; font-size:clamp(.6rem,2vw,1rem); color:rgba(255,255,255,.75); letter-spacing:.5em; text-transform:uppercase; margin-top:.5em; animation:fadeIn 2s ease .8s forwards; opacity:0; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    #controls-hint { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%); z-index:10; font-family:'Montserrat',sans-serif; font-weight:300; font-size:.7rem; color:rgba(255,255,255,.55); letter-spacing:.2em; text-transform:uppercase; animation:fadeIn 2s ease 1.5s forwards; opacity:0; pointer-events:none; }
+    #time-indicator { position:fixed; top:1.2rem; right:1.5rem; z-index:20; font-family:'Montserrat',sans-serif; font-weight:300; font-size:.75rem; letter-spacing:.25em; text-transform:uppercase; color:rgba(255,255,255,.9); background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.22); padding:.4em .9em; border-radius:2em; backdrop-filter:blur(6px); pointer-events:none; animation:fadeIn 2s ease 2s forwards; opacity:0; min-width:10em; text-align:center; }
   </style>
 </head>
 <body>
-
   <div id="canvas-container"></div>
-
-  <div id="title-overlay">
-    <h1>Чайка</h1>
-    <div class="subtitle">над морем</div>
-  </div>
-
+  <div id="title-overlay"><h1>Чайка</h1><div class="subtitle">над морем</div></div>
   <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт · N — ускорить время ×10</div>
-
   <div id="time-indicator">☀ Утро · 0с</div>
-
   <script type="module">
     import * as THREE from 'three';
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── РЕНДЕРЕР ────────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -139,666 +38,381 @@
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0xFFD0AA, 0.003);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
     camera.position.set(0, 6, 20);
     camera.lookAt(0, 3, -10);
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── ОСВЕЩЕНИЕ ───────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
+    // ─── ОСВЕЩЕНИЕ
     const ambientLight = new THREE.AmbientLight(0xffeedd, 0.4);
     scene.add(ambientLight);
 
     const dirLight = new THREE.DirectionalLight(0xFFAA66, 0.8);
-    dirLight.position.set(-80, 5, -60);
+    dirLight.position.set(0, 80, -150);
     dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(2048, 2048);
-    dirLight.shadow.camera.far = 300;
-    dirLight.shadow.camera.left   = -100;
-    dirLight.shadow.camera.right  =  100;
-    dirLight.shadow.camera.top    =  100;
-    dirLight.shadow.camera.bottom = -100;
+    dirLight.shadow.mapSize.set(2048,2048);
+    dirLight.shadow.camera.far = 400;
+    dirLight.shadow.camera.left = -150; dirLight.shadow.camera.right = 150;
+    dirLight.shadow.camera.top = 150; dirLight.shadow.camera.bottom = -150;
     scene.add(dirLight);
 
     const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.3);
     scene.add(fillLight);
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── СОЛНЦЕ ──────────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
+    // ─── СОЛНЦЕ (ЮГ, Z = -150)
     const sunGroup = new THREE.Group();
-    sunGroup.position.set(-80, 5, -60);
-
-    const sunCore = new THREE.Mesh(
-      new THREE.SphereGeometry(3, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xFFFDE0, fog: false, depthWrite: false, depthTest: false })
-    );
-    sunCore.renderOrder = 999;
-    sunGroup.add(sunCore);
-
-    const sunMid = new THREE.Mesh(
-      new THREE.SphereGeometry(6, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xFFE082, transparent: true, opacity: 0.4, fog: false, depthWrite: false, depthTest: false })
-    );
-    sunMid.renderOrder = 998;
-    sunGroup.add(sunMid);
-
-    const sunOuter = new THREE.Mesh(
-      new THREE.SphereGeometry(10, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xFFD54F, transparent: true, opacity: 0.15, fog: false, depthWrite: false, depthTest: false })
-    );
-    sunOuter.renderOrder = 997;
-    sunGroup.add(sunOuter);
-
+    sunGroup.position.set(0, 80, -150);
+    sunGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(3,32,32), new THREE.MeshBasicMaterial({color:0xFFFDE0,fog:false,depthWrite:false,depthTest:false})), {renderOrder:999}));
+    sunGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(6,32,32), new THREE.MeshBasicMaterial({color:0xFFE082,transparent:true,opacity:0.4,fog:false,depthWrite:false,depthTest:false})), {renderOrder:998}));
+    sunGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(10,32,32), new THREE.MeshBasicMaterial({color:0xFFD54F,transparent:true,opacity:0.15,fog:false,depthWrite:false,depthTest:false})), {renderOrder:997}));
     scene.add(sunGroup);
 
-    // Световая дорожка на воде от солнца
-    const sunReflection = new THREE.Mesh(
-      new THREE.PlaneGeometry(30, 30),
-      new THREE.MeshBasicMaterial({ color: 0xFFF8DC, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide })
-    );
-    sunReflection.rotation.x = -Math.PI / 2;
-    sunReflection.position.set(-80, 0.2, -60);
+    const sunReflection = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.MeshBasicMaterial({color:0xFFF8DC,transparent:true,opacity:0.3,depthWrite:false,side:THREE.DoubleSide}));
+    sunReflection.rotation.x = -Math.PI/2;
+    sunReflection.position.set(0,0.2,-150);
     scene.add(sunReflection);
-
-    const sunLight = new THREE.PointLight(0xFFF8DC, 2, 120);
-    sunLight.position.set(-80, 0.5, -60);
+    const sunLight = new THREE.PointLight(0xFFF8DC, 2, 200);
+    sunLight.position.set(0,0.5,-150);
     scene.add(sunLight);
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── ЛУНА ────────────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
+    // ─── ЛУНА
     const moonGroup = new THREE.Group();
-    moonGroup.position.set(-40, 40, -120);
+    moonGroup.position.set(-40,40,-120);
     moonGroup.visible = false;
-
-    const moonCore = new THREE.Mesh(
-      new THREE.SphereGeometry(3, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xFFFACD, fog: false, depthWrite: false, depthTest: false })
-    );
-    moonCore.renderOrder = 999;
-    moonGroup.add(moonCore);
-
-    const moonGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(5.5, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xD0E8FF, transparent: true, opacity: 0.18, fog: false, depthWrite: false, depthTest: false })
-    );
-    moonGlow.renderOrder = 998;
-    moonGroup.add(moonGlow);
-
+    moonGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(3,32,32), new THREE.MeshBasicMaterial({color:0xFFFACD,fog:false,depthWrite:false,depthTest:false})),{renderOrder:999}));
+    moonGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(5.5,32,32), new THREE.MeshBasicMaterial({color:0xD0E8FF,transparent:true,opacity:0.18,fog:false,depthWrite:false,depthTest:false})),{renderOrder:998}));
     scene.add(moonGroup);
-
     const moonLight = new THREE.PointLight(0x8899CC, 0, 200);
-    moonLight.position.set(-40, 0.5, -60);
+    moonLight.position.set(-40,0.5,-60);
     scene.add(moonLight);
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── ЗВЁЗДЫ ──────────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
+    // ─── ЗВЁЗДЫ
     const STAR_COUNT = 300;
-    const starPositions = new Float32Array(STAR_COUNT * 3);
-    for (let i = 0; i < STAR_COUNT; i++) {
-      const angle  = Math.random() * Math.PI * 2;
-      const radius = Math.random() * 200;
-      starPositions[i * 3 + 0] = Math.cos(angle) * radius;
-      starPositions[i * 3 + 1] = 50 + Math.random() * 50;
-      starPositions[i * 3 + 2] = Math.sin(angle) * radius;
-    }
-    const starGeometry = new THREE.BufferGeometry();
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({
-      color: 0xFFFFFF, size: 1.8, sizeAttenuation: false,
-      transparent: true, opacity: 0.0, fog: false,
-    });
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    scene.add(stars);
+    const sp = new Float32Array(STAR_COUNT*3);
+    for(let i=0;i<STAR_COUNT;i++){const a=Math.random()*Math.PI*2,r=Math.random()*200;sp[i*3]=Math.cos(a)*r;sp[i*3+1]=50+Math.random()*50;sp[i*3+2]=Math.sin(a)*r;}
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(sp,3));
+    const starMaterial = new THREE.PointsMaterial({color:0xFFFFFF,size:1.8,sizeAttenuation:false,transparent:true,opacity:0.0,fog:false});
+    scene.add(new THREE.Points(starGeo, starMaterial));
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── МОРЕ ────────────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-    const alphaCanvas = document.createElement('canvas');
-    alphaCanvas.width = 512; alphaCanvas.height = 512;
-    const alphaCtx = alphaCanvas.getContext('2d');
-    const gradient = alphaCtx.createRadialGradient(256, 256, 0, 256, 256, 256);
-    gradient.addColorStop(0.0,  'rgba(255,255,255,1)');
-    gradient.addColorStop(0.55, 'rgba(255,255,255,1)');
-    gradient.addColorStop(0.80, 'rgba(255,255,255,0.6)');
-    gradient.addColorStop(1.0,  'rgba(0,0,0,0)');
-    alphaCtx.fillStyle = gradient;
-    alphaCtx.fillRect(0, 0, 512, 512);
-    const alphaTexture = new THREE.CanvasTexture(alphaCanvas);
+    // ─── МОРЕ
+    const ac = document.createElement('canvas'); ac.width=512; ac.height=512;
+    const actx = ac.getContext('2d');
+    const grad = actx.createRadialGradient(256,256,0,256,256,256);
+    grad.addColorStop(0,'rgba(255,255,255,1)'); grad.addColorStop(0.55,'rgba(255,255,255,1)');
+    grad.addColorStop(0.80,'rgba(255,255,255,0.6)'); grad.addColorStop(1,'rgba(0,0,0,0)');
+    actx.fillStyle=grad; actx.fillRect(0,0,512,512);
+    const alphaTexture = new THREE.CanvasTexture(ac);
 
-    const planeGeometry = new THREE.PlaneGeometry(600, 600, 400, 400);
-    const vertexCount = planeGeometry.attributes.position.count;
-    const colorsArray = new Float32Array(vertexCount * 3);
-    planeGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
-
-    const planeMaterial = new THREE.MeshStandardMaterial({
-      vertexColors: true, transparent: true, opacity: 0.92,
-      alphaMap: alphaTexture, alphaTest: 0.0, side: THREE.DoubleSide,
-      roughness: 0.55, metalness: 0.05, flatShading: true, depthWrite: false,
-    });
-
+    const planeGeometry = new THREE.PlaneGeometry(600,600,400,400);
+    const vc = planeGeometry.attributes.position.count;
+    planeGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(vc*3),3));
+    const planeMaterial = new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,opacity:0.92,alphaMap:alphaTexture,alphaTest:0.0,side:THREE.DoubleSide,roughness:0.55,metalness:0.05,flatShading:true,depthWrite:false});
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-    plane.rotation.x = -Math.PI / 2;
-    plane.position.y = 0;
-    plane.receiveShadow = true;
+    plane.rotation.x = -Math.PI/2; plane.position.y=0; plane.receiveShadow=true;
     scene.add(plane);
-
     const planePositions = planeGeometry.attributes.position;
-    const planeColors    = planeGeometry.attributes.color;
+    const planeColors = planeGeometry.attributes.color;
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── ЦВЕТОВЫЕ ПАЛИТРЫ ФАЗ ────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-
+    // ─── ПАЛИТРЫ
     const PHASES = {
-      // ── Утро (0–70) ──────────────────────────────────────────────
-      morning: {
-        skyTop:      new THREE.Color(0xFFB89A),
-        skyBottom:   new THREE.Color(0xFFD0AA),
-        fogColor:    new THREE.Color(0xFFD0AA),
-        fogDensity:  0.003,
-        ambientColor: new THREE.Color(0xFFDDBB),
-        ambientIntensity: 0.4,
-        dirColor:    new THREE.Color(0xFFAA66),
-        dirIntensity: 0.8,
-        // Солнце у горизонта слева (восход)
-        sunX: -80, sunY: 5, sunZ: -60,
-        sunVisible: true,
-        wDeep:  new THREE.Color(0x6B9FAE),
-        wMid:   new THREE.Color(0x8CB5C4),
-        wCrest: new THREE.Color(0xFFEEDD),
-        wFoam:  new THREE.Color(0xFFFFFF),
-        moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
-        label: '🌅 Утро',
-      },
-      // ── День (70–230) ─────────────────────────────────────────────
-      day: {
-        skyTop:      new THREE.Color(0x7EC8E3),
-        skyBottom:   new THREE.Color(0xC8E8F5),
-        fogColor:    new THREE.Color(0xE8D5B7),
-        fogDensity:  0.0025,
-        ambientColor: new THREE.Color(0xFFFFFF),
-        ambientIntensity: 0.6,
-        dirColor:    new THREE.Color(0xFFF8E7),
-        dirIntensity: 1.4,
-        // Солнце высоко в зените
-        sunX: 0, sunY: 80, sunZ: -100,
-        sunVisible: true,
-        wDeep:  new THREE.Color(0x3A8A9A),
-        wMid:   new THREE.Color(0x7EC8E3),
-        wCrest: new THREE.Color(0xFFFFFF),
-        wFoam:  new THREE.Color(0xFFF8E7),
-        moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
-        label: '☀ День',
-      },
-      // ── Вечер (230–300) ───────────────────────────────────────────
-      evening: {
-        skyTop:      new THREE.Color(0xFF9F8B),
-        skyBottom:   new THREE.Color(0xFFBB99),
-        fogColor:    new THREE.Color(0xFFAA77),
-        fogDensity:  0.003,
-        ambientColor: new THREE.Color(0xFFCCAA),
-        ambientIntensity: 0.45,
-        dirColor:    new THREE.Color(0xFFB347),
-        dirIntensity: 0.9,
-        // Солнце у горизонта справа (закат)
-        sunX: 80, sunY: 5, sunZ: -60,
-        sunVisible: true,
-        wDeep:  new THREE.Color(0x8A6A50),
-        wMid:   new THREE.Color(0xC4A882),
-        wCrest: new THREE.Color(0xFFCCAA),
-        wFoam:  new THREE.Color(0xFFEEDD),
-        moonVisible: false, starsOpacity: 0.0, moonIntensity: 0,
-        label: '🌇 Вечер',
-      },
-      // ── Ночь (300–360) ────────────────────────────────────────────
-      night: {
-        skyTop:      new THREE.Color(0x1A2A40),
-        skyBottom:   new THREE.Color(0x0F1A2A),
-        fogColor:    new THREE.Color(0x1A2A40),
-        fogDensity:  0.004,
-        ambientColor: new THREE.Color(0x8899AA),
-        ambientIntensity: 0.15,
-        dirColor:    new THREE.Color(0x334466),
-        dirIntensity: 0.2,
-        // Солнце под горизонтом
-        sunX: 0, sunY: -30, sunZ: -100,
-        sunVisible: false,
-        wDeep:  new THREE.Color(0x0F2A3A),
-        wMid:   new THREE.Color(0x1A3A4A),
-        wCrest: new THREE.Color(0xC0C8D4),
-        wFoam:  new THREE.Color(0xD0D8E8),
-        moonVisible: true, starsOpacity: 0.9, moonIntensity: 1.5,
-        label: '🌙 Ночь',
-      },
+      morning:{skyTop:new THREE.Color(0xFFB89A),skyBottom:new THREE.Color(0xFFD0AA),fogColor:new THREE.Color(0xFFD0AA),fogDensity:0.003,ambientColor:new THREE.Color(0xFFDDBB),ambientIntensity:0.4,dirColor:new THREE.Color(0xFFAA66),dirIntensity:0.8,sunX:0,sunY:20,sunZ:-150,sunVisible:true,wDeep:new THREE.Color(0x6B9FAE),wMid:new THREE.Color(0x8CB5C4),wCrest:new THREE.Color(0xFFEEDD),wFoam:new THREE.Color(0xFFFFFF),moonVisible:false,starsOpacity:0.0,moonIntensity:0,label:'🌅 Утро'},
+      day:{skyTop:new THREE.Color(0x7EC8E3),skyBottom:new THREE.Color(0xC8E8F5),fogColor:new THREE.Color(0xE8D5B7),fogDensity:0.0025,ambientColor:new THREE.Color(0xFFFFFF),ambientIntensity:0.6,dirColor:new THREE.Color(0xFFF8E7),dirIntensity:1.4,sunX:0,sunY:80,sunZ:-150,sunVisible:true,wDeep:new THREE.Color(0x3A8A9A),wMid:new THREE.Color(0x7EC8E3),wCrest:new THREE.Color(0xFFFFFF),wFoam:new THREE.Color(0xFFF8E7),moonVisible:false,starsOpacity:0.0,moonIntensity:0,label:'☀ День'},
+      evening:{skyTop:new THREE.Color(0xFF9F8B),skyBottom:new THREE.Color(0xFFBB99),fogColor:new THREE.Color(0xFFAA77),fogDensity:0.003,ambientColor:new THREE.Color(0xFFCCAA),ambientIntensity:0.45,dirColor:new THREE.Color(0xFFB347),dirIntensity:0.9,sunX:0,sunY:10,sunZ:-150,sunVisible:true,wDeep:new THREE.Color(0x8A6A50),wMid:new THREE.Color(0xC4A882),wCrest:new THREE.Color(0xFFCCAA),wFoam:new THREE.Color(0xFFEEDD),moonVisible:false,starsOpacity:0.0,moonIntensity:0,label:'🌇 Вечер'},
+      night:{skyTop:new THREE.Color(0x1A2A40),skyBottom:new THREE.Color(0x0F1A2A),fogColor:new THREE.Color(0x1A2A40),fogDensity:0.004,ambientColor:new THREE.Color(0x8899AA),ambientIntensity:0.15,dirColor:new THREE.Color(0x334466),dirIntensity:0.2,sunX:0,sunY:-30,sunZ:-150,sunVisible:false,wDeep:new THREE.Color(0x0F2A3A),wMid:new THREE.Color(0x1A3A4A),wCrest:new THREE.Color(0xC0C8D4),wFoam:new THREE.Color(0xD0D8E8),moonVisible:true,starsOpacity:0.9,moonIntensity:1.5,label:'🌙 Ночь'},
     };
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── ФУНКЦИИ ИНТЕРПОЛЯЦИИ ────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
+    function smoothstep(x){const c=Math.max(0,Math.min(1,x));return c*c*(3-2*c);}
+    function lerpNum(a,b,t){return a+(b-a)*t;}
+    function lerpColor(out,a,b,t){out.set(lerpNum(a.r,b.r,t),lerpNum(a.g,b.g,t),lerpNum(a.b,b.b,t));}
 
-    function smoothstep(x) {
-      const c = Math.max(0, Math.min(1, x));
-      return c * c * (3 - 2 * c);
+    const state={fogColor:new THREE.Color(),fogDensity:0.003,ambientColor:new THREE.Color(),ambientIntensity:0.4,dirColor:new THREE.Color(),dirIntensity:1.0,sunX:0,sunY:20,sunZ:-150,sunVisible:true,wDeep:new THREE.Color(),wMid:new THREE.Color(),wCrest:new THREE.Color(),wFoam:new THREE.Color(),moonVisible:false,starsOpacity:0.0,moonIntensity:0,label:'🌅 Утро'};
+
+    function transitionT(gt,b,h){return smoothstep((gt-(b-h))/(h*2));}
+
+    function blendPhases(a,b,t){
+      lerpColor(state.fogColor,a.fogColor,b.fogColor,t);
+      state.fogDensity=lerpNum(a.fogDensity,b.fogDensity,t);
+      lerpColor(state.ambientColor,a.ambientColor,b.ambientColor,t);
+      state.ambientIntensity=lerpNum(a.ambientIntensity,b.ambientIntensity,t);
+      lerpColor(state.dirColor,a.dirColor,b.dirColor,t);
+      state.dirIntensity=lerpNum(a.dirIntensity,b.dirIntensity,t);
+      state.sunX=lerpNum(a.sunX,b.sunX,t); state.sunY=lerpNum(a.sunY,b.sunY,t); state.sunZ=lerpNum(a.sunZ,b.sunZ,t);
+      state.sunVisible=b.sunVisible||a.sunVisible;
+      lerpColor(state.wDeep,a.wDeep,b.wDeep,t); lerpColor(state.wMid,a.wMid,b.wMid,t);
+      lerpColor(state.wCrest,a.wCrest,b.wCrest,t); lerpColor(state.wFoam,a.wFoam,b.wFoam,t);
+      state.starsOpacity=lerpNum(a.starsOpacity,b.starsOpacity,t);
+      state.moonIntensity=lerpNum(a.moonIntensity,b.moonIntensity,t);
+      state.moonVisible=state.moonIntensity>0.01||b.moonVisible;
+      state.label=t>0.5?b.label:a.label;
+      const topC=new THREE.Color().copy(a.skyTop).lerp(b.skyTop,t);
+      const botC=new THREE.Color().copy(a.skyBottom).lerp(b.skyBottom,t);
+      document.body.style.background=`linear-gradient(to bottom,#${topC.getHexString()} 0%,#${botC.getHexString()} 100%)`;
     }
 
-    function lerpNum(a, b, t) { return a + (b - a) * t; }
-
-    function lerpColor(out, a, b, t) {
-      out.set(
-        lerpNum(a.r, b.r, t),
-        lerpNum(a.g, b.g, t),
-        lerpNum(a.b, b.b, t),
-      );
+    function updateStateFromTime(gt){
+      const H=10;
+      if(gt<70-H){blendPhases(PHASES.morning,PHASES.morning,0);state.label=PHASES.morning.label;}
+      else if(gt<70+H){blendPhases(PHASES.morning,PHASES.day,transitionT(gt,70,H));}
+      else if(gt<230-H){blendPhases(PHASES.day,PHASES.day,0);state.label=PHASES.day.label;}
+      else if(gt<230+H){blendPhases(PHASES.day,PHASES.evening,transitionT(gt,230,H));}
+      else if(gt<300-H){blendPhases(PHASES.evening,PHASES.evening,0);state.label=PHASES.evening.label;}
+      else if(gt<300+H){blendPhases(PHASES.evening,PHASES.night,transitionT(gt,300,H));}
+      else if(gt<360-H){blendPhases(PHASES.night,PHASES.night,0);state.label=PHASES.night.label;}
+      else{blendPhases(PHASES.night,PHASES.morning,transitionT(gt,360,H));}
     }
 
-    const state = {
-      fogColor:    new THREE.Color(),
-      fogDensity:  0.003,
-      ambientColor: new THREE.Color(),
-      ambientIntensity: 0.4,
-      dirColor:    new THREE.Color(),
-      dirIntensity: 1.0,
-      sunX: -80, sunY: 5, sunZ: -60,
-      sunVisible: true,
-      skyHex: '#FFB89A',
-      wDeep:  new THREE.Color(),
-      wMid:   new THREE.Color(),
-      wCrest: new THREE.Color(),
-      wFoam:  new THREE.Color(),
-      moonVisible: false,
-      starsOpacity: 0.0,
-      moonIntensity: 0,
-      label: '🌅 Утро',
-    };
+    function applyStateToScene(){
+      scene.fog.color.copy(state.fogColor); scene.fog.density=state.fogDensity;
+      ambientLight.color.copy(state.ambientColor); ambientLight.intensity=state.ambientIntensity;
+      dirLight.color.copy(state.dirColor); dirLight.intensity=state.dirIntensity;
+      dirLight.position.set(state.sunX,state.sunY,state.sunZ);
+      sunGroup.position.set(state.sunX,state.sunY,state.sunZ);
+      sunGroup.visible=state.sunVisible; sunReflection.visible=state.sunVisible;
+      sunReflection.position.x=state.sunX; sunReflection.position.z=state.sunZ;
+      sunLight.position.set(state.sunX,0.5,state.sunZ); sunLight.visible=state.sunVisible;
+      moonGroup.visible=state.moonVisible; moonLight.intensity=state.moonIntensity;
+      starMaterial.opacity=state.starsOpacity;
+    }
 
     // ════════════════════════════════════════════════════════════════
-    // ─── ЛОГИКА ЦИКЛА ────────────────────────────────────────────────
+    // ─── СКАЛЫ НА СЕВЕРЕ — ПОЛОЖИТЕЛЬНЫЙ Z (+200 до +250)
     //
-    //  Новые границы фаз (секунды):
-    //   0   — начало утра
-    //   70  — конец утра / начало дня
-    //   230 — конец дня / начало вечера
-    //   300 — конец вечера / начало ночи
-    //   360 — конец ночи / снова утро (= 0)
-    //
-    //  Переходы: ±10 секунд вокруг каждой границы (20 сек каждый).
+    // Чайка стоит в (0, 3, 20), смотрит на ЮГ (отриц. Z).
+    // Скалы — ЗА СПИНОЙ чайки, на ПОЛОЖИТЕЛЬНОМ Z.
     // ════════════════════════════════════════════════════════════════
+    const shoreGroup = new THREE.Group();
+    scene.add(shoreGroup);
 
-    function transitionT(gameTime, boundary, half) {
-      return smoothstep((gameTime - (boundary - half)) / (half * 2));
-    }
+    const matLS1 = new THREE.MeshStandardMaterial({color:0xE8DCC8,roughness:0.92,metalness:0.0,flatShading:true});
+    const matLS2 = new THREE.MeshStandardMaterial({color:0xD5C8B5,roughness:0.95,metalness:0.0,flatShading:true});
+    const matLS3 = new THREE.MeshStandardMaterial({color:0xF0E6D8,roughness:0.90,metalness:0.0,flatShading:true});
+    const matLS = [matLS1,matLS2,matLS3];
 
-    function blendPhases(a, b, t) {
-      lerpColor(state.fogColor,    a.fogColor,    b.fogColor,    t);
-      state.fogDensity         = lerpNum(a.fogDensity,         b.fogDensity,         t);
-      lerpColor(state.ambientColor, a.ambientColor, b.ambientColor, t);
-      state.ambientIntensity   = lerpNum(a.ambientIntensity,   b.ambientIntensity,   t);
-      lerpColor(state.dirColor,    a.dirColor,    b.dirColor,    t);
-      state.dirIntensity       = lerpNum(a.dirIntensity,       b.dirIntensity,       t);
-      state.sunX               = lerpNum(a.sunX, b.sunX, t);
-      state.sunY               = lerpNum(a.sunY, b.sunY, t);
-      state.sunZ               = lerpNum(a.sunZ, b.sunZ, t);
-      state.sunVisible         = b.sunVisible || a.sunVisible;
-      lerpColor(state.wDeep,  a.wDeep,  b.wDeep,  t);
-      lerpColor(state.wMid,   a.wMid,   b.wMid,   t);
-      lerpColor(state.wCrest, a.wCrest, b.wCrest, t);
-      lerpColor(state.wFoam,  a.wFoam,  b.wFoam,  t);
-      state.starsOpacity    = lerpNum(a.starsOpacity,  b.starsOpacity,  t);
-      state.moonIntensity   = lerpNum(a.moonIntensity, b.moonIntensity, t);
-      state.moonVisible     = state.moonIntensity > 0.01 || b.moonVisible;
-      state.label = t > 0.5 ? b.label : a.label;
+    // Основная стена: ширина 400, высота 30, глубина 15, позиция (0,15,220)
+    const baseWall = new THREE.Mesh(new THREE.BoxGeometry(400,30,15), matLS1);
+    baseWall.position.set(0,15,220);
+    baseWall.castShadow=true; baseWall.receiveShadow=true;
+    shoreGroup.add(baseWall);
 
-      const topA  = new THREE.Color().copy(a.skyTop).lerp(b.skyTop, t);
-      const botA  = new THREE.Color().copy(a.skyBottom).lerp(b.skyBottom, t);
-      const topHex = '#' + topA.getHexString();
-      const botHex = '#' + botA.getHexString();
-      document.body.style.background = `linear-gradient(to bottom, ${topHex} 0%, ${botHex} 100%)`;
-    }
+    // Выступающие блоки сверху — неровный силуэт
+    const topBlocks = [
+      {cx:-175,cz:220,w:55, h:28,d:18,mi:0},
+      {cx:-100,cz:222,w:48, h:42,d:20,mi:1},
+      {cx: -30,cz:219,w:52, h:20,d:16,mi:2},
+      {cx:  35,cz:223,w:44, h:50,d:22,mi:0},
+      {cx: 105,cz:220,w:50, h:35,d:18,mi:1},
+      {cx: 170,cz:221,w:46, h:45,d:20,mi:2},
+      {cx: -62,cz:218,w:38, h:15,d:14,mi:0},
+      {cx:  72,cz:222,w:36, h:22,d:16,mi:1},
+    ];
 
-    // ── Главная функция: вычисляет state по gameTime ──────────────────
-    // Новые границы: 0 | 70 | 230 | 300 | 360
-    function updateStateFromTime(gt) {
-      const HALF = 10; // секунд на краю зоны перехода
-
-      if (gt < 70 - HALF) {
-        // ── Утро (устойчивая фаза) ───────────────────────────────
-        blendPhases(PHASES.morning, PHASES.morning, 0);
-        state.label = PHASES.morning.label;
-
-      } else if (gt < 70 + HALF) {
-        // ── Переход Утро → День ───────────────────────────────────
-        blendPhases(PHASES.morning, PHASES.day, transitionT(gt, 70, HALF));
-
-      } else if (gt < 230 - HALF) {
-        // ── День (устойчивая фаза) ────────────────────────────────
-        blendPhases(PHASES.day, PHASES.day, 0);
-        state.label = PHASES.day.label;
-
-      } else if (gt < 230 + HALF) {
-        // ── Переход День → Вечер ─────────────────────────────────
-        blendPhases(PHASES.day, PHASES.evening, transitionT(gt, 230, HALF));
-
-      } else if (gt < 300 - HALF) {
-        // ── Вечер (устойчивая фаза) ───────────────────────────────
-        blendPhases(PHASES.evening, PHASES.evening, 0);
-        state.label = PHASES.evening.label;
-
-      } else if (gt < 300 + HALF) {
-        // ── Переход Вечер → Ночь ─────────────────────────────────
-        blendPhases(PHASES.evening, PHASES.night, transitionT(gt, 300, HALF));
-
-      } else if (gt < 360 - HALF) {
-        // ── Ночь (устойчивая фаза) ────────────────────────────────
-        blendPhases(PHASES.night, PHASES.night, 0);
-        state.label = PHASES.night.label;
-
-      } else {
-        // ── Переход Ночь → Утро (конец/начало цикла) ─────────────
-        blendPhases(PHASES.night, PHASES.morning, transitionT(gt, 360, HALF));
-      }
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // ─── ПРИМЕНЕНИЕ state К ОБЪЕКТАМ СЦЕНЫ ────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-    function applyStateToScene() {
-      scene.fog.color.copy(state.fogColor);
-      scene.fog.density = state.fogDensity;
-
-      ambientLight.color.copy(state.ambientColor);
-      ambientLight.intensity = state.ambientIntensity;
-
-      dirLight.color.copy(state.dirColor);
-      dirLight.intensity = state.dirIntensity;
-      dirLight.position.set(state.sunX, state.sunY, state.sunZ);
-
-      sunGroup.position.set(state.sunX, state.sunY, state.sunZ);
-      sunGroup.visible      = state.sunVisible;
-      sunReflection.visible = state.sunVisible;
-      sunReflection.position.x = state.sunX;
-      sunReflection.position.z = state.sunZ;
-      sunLight.position.set(state.sunX, 0.5, state.sunZ);
-      sunLight.visible = state.sunVisible;
-
-      moonGroup.visible   = state.moonVisible;
-      moonLight.intensity = state.moonIntensity;
-
-      starMaterial.opacity = state.starsOpacity;
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // ─── ЧАЙКА ───────────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-    function createWing(mirrorX = false) {
-      const shape = new THREE.Shape();
-      const sign  = mirrorX ? -1 : 1;
-      shape.moveTo(0, 0);
-      shape.bezierCurveTo(sign * 0.5, 0.3, sign * 2.5, 0.6, sign * 4.5, 0.1);
-      shape.bezierCurveTo(sign * 3.5, -0.1, sign * 1.5, -0.3, 0, 0);
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: 0.05, bevelEnabled: true, bevelSize: 0.05,
-        bevelThickness: 0.02, bevelSegments: 2,
-      });
-      return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-        color: 0xF8F4F0, roughness: 0.7, metalness: 0.0, side: THREE.DoubleSide,
-      }));
-    }
-
-    function createBody() {
-      const mesh = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.2, 0.7, 8, 16),
-        new THREE.MeshStandardMaterial({ color: 0xF5F1ED, roughness: 0.8 })
-      );
-      mesh.rotation.z = Math.PI / 2;
-      return mesh;
-    }
-
-    function createTail() {
-      const mesh = new THREE.Mesh(
-        new THREE.ConeGeometry(0.15, 0.5, 6),
-        new THREE.MeshStandardMaterial({ color: 0xEDE9E4, roughness: 0.8 })
-      );
-      mesh.rotation.z = Math.PI / 2;
-      mesh.position.x = -0.6;
-      return mesh;
-    }
-
-    function createHead() {
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 12, 12),
-        new THREE.MeshStandardMaterial({ color: 0xF5F1ED, roughness: 0.8 })
-      );
-      mesh.position.set(0.55, 0.12, 0);
-      return mesh;
-    }
-
-    function createBeak() {
-      const mesh = new THREE.Mesh(
-        new THREE.ConeGeometry(0.05, 0.3, 6),
-        new THREE.MeshStandardMaterial({ color: 0xF5C842, roughness: 0.5 })
-      );
-      mesh.rotation.z = -Math.PI / 2;
-      mesh.position.set(0.85, 0.1, 0);
-      return mesh;
-    }
-
-    function createSeagull() {
-      const group = new THREE.Group();
-      const wingL = createWing(false);
-      const wingR = createWing(true);
-      wingL.position.set(-0.1, 0.08,  0.05);
-      wingR.position.set(-0.1, 0.08, -0.10);
-      group.add(createBody(), createTail(), createHead(), createBeak(), wingL, wingR);
-      group.traverse(child => { if (child.isMesh) child.castShadow = true; });
-      group.userData.wingL = wingL;
-      group.userData.wingR = wingR;
-      return group;
-    }
-
-    const seagulls = [];
-    for (let i = 0; i < 7; i++) {
-      const gull   = createSeagull();
-      const angle  = (i / 7) * Math.PI * 2;
-      const radius = 5 + Math.random() * 15;
-      gull.position.set(Math.cos(angle) * radius, 4 + Math.random() * 8, Math.sin(angle) * radius);
-      gull.scale.setScalar(0.6 + Math.random() * 0.6);
-      gull.userData.speed         = 0.004 + Math.random() * 0.006;
-      gull.userData.orbitRadius   = radius;
-      gull.userData.orbitAngle    = angle;
-      gull.userData.orbitY        = gull.position.y;
-      gull.userData.wingPhase     = Math.random() * Math.PI * 2;
-      gull.userData.wingSpeed     = 1.5 + Math.random() * 2;
-      gull.userData.verticalPhase = Math.random() * Math.PI * 2;
-      scene.add(gull);
-      seagulls.push(gull);
-    }
-
-    // ─── ОБЛАКА ────────────────────────────────────────────────────────
-    function createCloud() {
-      const group = new THREE.Group();
-      const mat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.85, roughness: 1.0 });
-      [
-        { r: 1.8, x:  0.0, y:  0.0, z: 0.0 },
-        { r: 1.4, x:  1.8, y: -0.3, z: 0.3 },
-        { r: 1.2, x: -1.6, y: -0.2, z: 0.1 },
-        { r: 1.0, x:  0.6, y:  0.8, z: 0.0 },
-        { r: 0.9, x: -0.5, y:  0.6, z: 0.2 },
-      ].forEach(b => {
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(b.r, 10, 10), mat);
-        mesh.position.set(b.x, b.y, b.z);
-        group.add(mesh);
-      });
-      return group;
-    }
-
-    const clouds = [];
-    for (let i = 0; i < 8; i++) {
-      const cloud = createCloud();
-      const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.5;
-      const dist  = 20 + Math.random() * 40;
-      cloud.position.set(Math.cos(angle) * dist, 12 + Math.random() * 8, Math.sin(angle) * dist);
-      cloud.scale.setScalar(0.8 + Math.random() * 1.2);
-      cloud.userData.speed = 0.0008 + Math.random() * 0.0005;
-      cloud.userData.angle = angle;
-      cloud.userData.dist  = dist;
-      scene.add(cloud);
-      clouds.push(cloud);
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // ─── УПРАВЛЕНИЕ ──────────────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-    const keys = {};
-    window.addEventListener('keydown', e => { keys[e.code] = true; });
-    window.addEventListener('keyup',   e => { keys[e.code] = false; });
-
-    let gameTime = 0;
-    const CYCLE  = 360;
-    const BASE_SPEED = 1;
-
-    const playerGull = seagulls[0];
-    playerGull.scale.setScalar(1.2);
-    playerGull.position.set(0, 6, 10);
-    playerGull.userData.isPlayer  = true;
-    playerGull.userData.velocityY = 0;
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+    topBlocks.forEach(b => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d), matLS[b.mi]);
+      m.position.set(b.cx, 30+b.h/2, b.cz);
+      m.castShadow=true; m.receiveShadow=true;
+      shoreGroup.add(m);
     });
 
-    const clock = new THREE.Clock();
-    const timeIndicator = document.getElementById('time-indicator');
+    // Полоса песка перед скалами
+    const sandMat = new THREE.MeshStandardMaterial({color:0xF5E6C8,roughness:0.97,metalness:0.0});
+    const sandStrip = new THREE.Mesh(new THREE.BoxGeometry(400,0.2,12), sandMat);
+    sandStrip.position.set(0,0.1,210);
+    sandStrip.receiveShadow=true;
+    shoreGroup.add(sandStrip);
 
-    // ─── Волны ─────────────────────────────────────────────────────────
-    function waveHeight(wx, wz, t) {
-      const p = 3.0;
-      const w1 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.00875 + wz * 0.020) + t * 0.45)), p) * 2.2;
-      const w2 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.01375 - wz * 0.045) + t * 0.65)), p) * 1.5;
-      const w3 = Math.pow(1.0 - Math.abs(Math.sin((wx * 0.03333 + wz * 0.080) + t * 1.10)), p) * 0.7;
-      const w4 = Math.pow(1.0 - Math.abs(Math.sin((-wx * 0.007 + wz * 0.042) + t * 0.30)), p) * 1.0;
-      const raw = (w1 + w2 + w3 + w4) / (2.2 + 1.5 + 0.7 + 1.0);
-      let amplitude = Math.pow(raw, 1.6) * 9.0;
-      amplitude *= (1 + 0.1 * Math.sin(wx * 0.5));
-      return amplitude;
+    // Обломки у подножия
+    [{cx:-140,cz:205,w:14,h:9,d:10},{cx:-60,cz:207,w:10,h:7,d:8},{cx:5,cz:204,w:16,h:11,d:11},{cx:80,cz:206,w:12,h:8,d:9},{cx:145,cz:205,w:13,h:10,d:9}]
+    .forEach((d,i)=>{
+      const m=new THREE.Mesh(new THREE.BoxGeometry(d.w,d.h,d.d),matLS[i%3]);
+      m.position.set(d.cx,d.h/2,d.cz); m.castShadow=true;
+      shoreGroup.add(m);
+    });
+
+    // Чайки-украшения на скалах
+    const nestMat = new THREE.MeshBasicMaterial({color:0xFFFFFF});
+    topBlocks.forEach(b=>{
+      if(b.h>=28){
+        const topY=30+b.h;
+        const cnt=1+Math.floor(Math.random()*2);
+        for(let j=0;j<cnt;j++){
+          const ng=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8),nestMat);
+          ng.position.set(b.cx+(Math.random()-.5)*b.w*.5, topY+0.4, b.cz+(Math.random()-.5)*b.d*.4);
+          shoreGroup.add(ng);
+        }
+      }
+    });
+
+    // ─── ЧАЙКА
+    function createWing(mir=false){
+      const sh=new THREE.Shape(); const s=mir?-1:1;
+      sh.moveTo(0,0); sh.bezierCurveTo(s*.5,.3,s*2.5,.6,s*4.5,.1); sh.bezierCurveTo(s*3.5,-.1,s*1.5,-.3,0,0);
+      return new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.05,bevelEnabled:true,bevelSize:.05,bevelThickness:.02,bevelSegments:2}),
+        new THREE.MeshStandardMaterial({color:0xF8F4F0,roughness:.7,metalness:0,side:THREE.DoubleSide}));
+    }
+    function mkBody(){const m=new THREE.Mesh(new THREE.CapsuleGeometry(.2,.7,8,16),new THREE.MeshStandardMaterial({color:0xF5F1ED,roughness:.8}));m.rotation.z=Math.PI/2;return m;}
+    function mkTail(){const m=new THREE.Mesh(new THREE.ConeGeometry(.15,.5,6),new THREE.MeshStandardMaterial({color:0xEDE9E4,roughness:.8}));m.rotation.z=Math.PI/2;m.position.x=-.6;return m;}
+    function mkHead(){const m=new THREE.Mesh(new THREE.SphereGeometry(.18,12,12),new THREE.MeshStandardMaterial({color:0xF5F1ED,roughness:.8}));m.position.set(.55,.12,0);return m;}
+    function mkBeak(){const m=new THREE.Mesh(new THREE.ConeGeometry(.05,.3,6),new THREE.MeshStandardMaterial({color:0xF5C842,roughness:.5}));m.rotation.z=-Math.PI/2;m.position.set(.85,.1,0);return m;}
+    function createSeagull(){
+      const g=new THREE.Group();
+      const wL=createWing(false),wR=createWing(true);
+      wL.position.set(-.1,.08,.05); wR.position.set(-.1,.08,-.10);
+      g.add(mkBody(),mkTail(),mkHead(),mkBeak(),wL,wR);
+      g.traverse(c=>{if(c.isMesh)c.castShadow=true;});
+      g.userData.wingL=wL; g.userData.wingR=wR;
+      return g;
     }
 
-    const tmpColor = new THREE.Color();
+    const seagulls=[];
+    for(let i=0;i<7;i++){
+      const gull=createSeagull();
+      const angle=(i/7)*Math.PI*2, radius=5+Math.random()*15;
+      gull.position.set(Math.cos(angle)*radius,4+Math.random()*8,Math.sin(angle)*radius);
+      gull.scale.setScalar(.6+Math.random()*.6);
+      gull.userData.speed=.004+Math.random()*.006;
+      gull.userData.orbitRadius=radius; gull.userData.orbitAngle=angle;
+      gull.userData.orbitY=gull.position.y;
+      gull.userData.wingPhase=Math.random()*Math.PI*2;
+      gull.userData.wingSpeed=1.5+Math.random()*2;
+      gull.userData.verticalPhase=Math.random()*Math.PI*2;
+      scene.add(gull); seagulls.push(gull);
+    }
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── ГЛАВНЫЙ ЦИКЛ АНИМАЦИИ ────────────────────────────────────────
-    // ════════════════════════════════════════════════════════════════
-    function animate() {
+    // ─── ОБЛАКА (по всему небу: X -200..200, Z -200..200, Y 40..80)
+    function createCloud(){
+      const g=new THREE.Group();
+      const mat=new THREE.MeshStandardMaterial({color:0xFFFFFF,transparent:true,opacity:.85,roughness:1});
+      [{r:1.8,x:0,y:0,z:0},{r:1.4,x:1.8,y:-.3,z:.3},{r:1.2,x:-1.6,y:-.2,z:.1},{r:1,x:.6,y:.8,z:0},{r:.9,x:-.5,y:.6,z:.2}]
+      .forEach(b=>{const m=new THREE.Mesh(new THREE.SphereGeometry(b.r,10,10),mat);m.position.set(b.x,b.y,b.z);g.add(m);});
+      return g;
+    }
+    const clouds=[];
+    for(let i=0;i<12;i++){
+      const cloud=createCloud();
+      const px=(Math.random()-.5)*400, pz=(Math.random()-.5)*400, py=40+Math.random()*40;
+      cloud.position.set(px,py,pz);
+      cloud.scale.setScalar(1.5+Math.random()*2.5);
+      cloud.userData.driftSpeed=.03+Math.random()*.02;
+      cloud.userData.bobPhase=Math.random()*Math.PI*2;
+      cloud.userData.baseY=py;
+      scene.add(cloud); clouds.push(cloud);
+    }
+
+    // ─── УПРАВЛЕНИЕ
+    const keys={};
+    window.addEventListener('keydown',e=>{keys[e.code]=true;});
+    window.addEventListener('keyup',e=>{keys[e.code]=false;});
+
+    let gameTime=0;
+    const CYCLE=360, BASE_SPEED=1;
+    const SHORE_WALL_Z=190; // чайка не залетает севернее Z=190
+
+    const playerGull=seagulls[0];
+    playerGull.scale.setScalar(1.2);
+    playerGull.position.set(0,6,20);
+    playerGull.userData.isPlayer=true;
+    playerGull.userData.velocityY=0;
+
+    window.addEventListener('resize',()=>{
+      camera.aspect=window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth,window.innerHeight);
+    });
+
+    const clock=new THREE.Clock();
+    const timeIndicator=document.getElementById('time-indicator');
+
+    function waveHeight(wx,wz,t){
+      const p=3;
+      const w1=Math.pow(1-Math.abs(Math.sin((wx*.00875+wz*.020)+t*.45)),p)*2.2;
+      const w2=Math.pow(1-Math.abs(Math.sin((wx*.01375-wz*.045)+t*.65)),p)*1.5;
+      const w3=Math.pow(1-Math.abs(Math.sin((wx*.03333+wz*.080)+t*1.10)),p)*.7;
+      const w4=Math.pow(1-Math.abs(Math.sin((-wx*.007+wz*.042)+t*.30)),p)*1;
+      const raw=(w1+w2+w3+w4)/(2.2+1.5+.7+1);
+      return Math.pow(raw,1.6)*9*(1+.1*Math.sin(wx*.5));
+    }
+
+    const tmpColor=new THREE.Color();
+    let lastDebugBucket=-1;
+
+    function animate(){
       requestAnimationFrame(animate);
-      const delta = clock.getDelta();
-      const t     = clock.elapsedTime;
+      const delta=clock.getDelta(), t=clock.elapsedTime;
 
-      // ── Обновляем игровое время ────────────────────────────────────
-      const speed = keys['KeyN'] ? BASE_SPEED * 10 : BASE_SPEED;
-      gameTime = (gameTime + delta * speed) % CYCLE;
+      // ── Отладка каждые ~2 секунды
+      const bucket=Math.floor(Date.now()/2000);
+      if(bucket!==lastDebugBucket){
+        lastDebugBucket=bucket;
+        console.log('Камера позиция:',camera.position.x.toFixed(1),camera.position.y.toFixed(1),camera.position.z.toFixed(1));
+        console.log('Чайка позиция:',playerGull.position.x.toFixed(1),playerGull.position.y.toFixed(1),playerGull.position.z.toFixed(1));
+      }
 
-      // ── Вычисляем и применяем состояние ───────────────────────────
+      const speed=keys['KeyN']?BASE_SPEED*10:BASE_SPEED;
+      gameTime=(gameTime+delta*speed)%CYCLE;
       updateStateFromTime(gameTime);
       applyStateToScene();
+      timeIndicator.textContent=`${state.label} · ${Math.floor(gameTime)}с`;
 
-      // ── Обновляем индикатор ────────────────────────────────────────
-      const gt = Math.floor(gameTime);
-      timeIndicator.textContent = `${state.label} · ${gt}с`;
-
-      // ── Волны ─────────────────────────────────────────────────────
-      const maxHeight  = 9.0;
-      const midLevel   = maxHeight * 0.35;
-      const crestLevel = maxHeight * 0.72;
-      const foamLevel  = maxHeight * 0.88;
-
-      for (let i = 0; i < planePositions.count; i++) {
-        const wx = planePositions.getX(i);
-        const wz = planePositions.getY(i);
-        const h  = waveHeight(wx, wz, t);
-        planePositions.setZ(i, h);
-
-        if (h >= foamLevel) {
-          const t2 = Math.min((h - foamLevel) / (maxHeight - foamLevel), 1.0);
-          tmpColor.copy(state.wCrest).lerp(state.wFoam, t2);
-        } else if (h >= crestLevel) {
-          const t2 = (h - crestLevel) / (foamLevel - crestLevel);
-          tmpColor.copy(state.wMid).lerp(state.wCrest, Math.pow(t2, 0.5));
-        } else if (h >= midLevel) {
-          const t2 = (h - midLevel) / (crestLevel - midLevel);
-          tmpColor.copy(state.wDeep).lerp(state.wMid, t2);
-        } else {
-          tmpColor.copy(state.wDeep);
-        }
-        planeColors.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
+      // Волны
+      const maxH=9,midL=maxH*.35,crL=maxH*.72,foL=maxH*.88;
+      for(let i=0;i<planePositions.count;i++){
+        const wx=planePositions.getX(i),wz=planePositions.getY(i);
+        const h=waveHeight(wx,wz,t);
+        planePositions.setZ(i,h);
+        if(h>=foL){tmpColor.copy(state.wCrest).lerp(state.wFoam,Math.min((h-foL)/(maxH-foL),1));}
+        else if(h>=crL){tmpColor.copy(state.wMid).lerp(state.wCrest,Math.pow((h-crL)/(foL-crL),.5));}
+        else if(h>=midL){tmpColor.copy(state.wDeep).lerp(state.wMid,(h-midL)/(crL-midL));}
+        else{tmpColor.copy(state.wDeep);}
+        planeColors.setXYZ(i,tmpColor.r,tmpColor.g,tmpColor.b);
       }
-      planePositions.needsUpdate = true;
-      planeColors.needsUpdate    = true;
+      planePositions.needsUpdate=true; planeColors.needsUpdate=true;
       planeGeometry.computeVertexNormals();
 
-      // ── Облака ────────────────────────────────────────────────────
-      clouds.forEach(cloud => {
-        cloud.userData.angle += cloud.userData.speed;
-        cloud.position.x = Math.cos(cloud.userData.angle) * cloud.userData.dist;
-        cloud.position.z = Math.sin(cloud.userData.angle) * cloud.userData.dist;
-        cloud.position.y += Math.sin(t * 0.3 + cloud.userData.angle) * 0.002;
+      // Облака — медленно дрейфуют
+      clouds.forEach(cloud=>{
+        cloud.position.z-=cloud.userData.driftSpeed;
+        if(cloud.position.z<-200){cloud.position.z=200;cloud.position.x=(Math.random()-.5)*400;}
+        cloud.position.y=cloud.userData.baseY+Math.sin(t*.15+cloud.userData.bobPhase)*1.5;
       });
 
-      // ── NPC-чайки ─────────────────────────────────────────────────
-      seagulls.forEach(gull => {
-        if (gull.userData.isPlayer) return;
-        gull.userData.orbitAngle += gull.userData.speed;
-        const a = gull.userData.orbitAngle;
-        const r = gull.userData.orbitRadius;
-        gull.position.x = Math.cos(a) * r;
-        gull.position.z = Math.sin(a) * r;
-        gull.position.y = gull.userData.orbitY + Math.sin(t * 0.5 + gull.userData.verticalPhase) * 1.2;
-        gull.rotation.y = -a + Math.PI / 2;
-        const wingAngle = Math.sin(t * gull.userData.wingSpeed + gull.userData.wingPhase) * 0.4;
-        gull.userData.wingL.rotation.x =  wingAngle;
-        gull.userData.wingR.rotation.x = -wingAngle;
+      // NPC-чайки
+      seagulls.forEach(gull=>{
+        if(gull.userData.isPlayer)return;
+        gull.userData.orbitAngle+=gull.userData.speed;
+        const a=gull.userData.orbitAngle,r=gull.userData.orbitRadius;
+        gull.position.x=Math.cos(a)*r; gull.position.z=Math.sin(a)*r;
+        gull.position.y=gull.userData.orbitY+Math.sin(t*.5+gull.userData.verticalPhase)*1.2;
+        gull.rotation.y=-a+Math.PI/2;
+        const wa=Math.sin(t*gull.userData.wingSpeed+gull.userData.wingPhase)*.4;
+        gull.userData.wingL.rotation.x=wa; gull.userData.wingR.rotation.x=-wa;
       });
 
-      // ── Игрок (управление) ────────────────────────────────────────
-      const moveSpeed = 0.08;
-      const turnSpeed = 0.03;
-      if (keys['ArrowLeft'])  playerGull.rotation.y += turnSpeed;
-      if (keys['ArrowRight']) playerGull.rotation.y -= turnSpeed;
-      const dir = new THREE.Vector3(-Math.sin(playerGull.rotation.y), 0, -Math.cos(playerGull.rotation.y));
-      if (keys['ArrowUp'])   playerGull.position.addScaledVector(dir,  moveSpeed);
-      if (keys['ArrowDown']) playerGull.position.addScaledVector(dir, -moveSpeed);
-      if (keys['Space']) {
-        playerGull.userData.velocityY = 0.08;
-      } else {
-        playerGull.userData.velocityY -= 0.003;
+      // Игрок
+      if(keys['ArrowLeft']) playerGull.rotation.y+=.03;
+      if(keys['ArrowRight']) playerGull.rotation.y-=.03;
+      const dir=new THREE.Vector3(-Math.sin(playerGull.rotation.y),0,-Math.cos(playerGull.rotation.y));
+      if(keys['ArrowUp']) playerGull.position.addScaledVector(dir,.08);
+      if(keys['ArrowDown']) playerGull.position.addScaledVector(dir,-.08);
+      if(keys['Space']){playerGull.userData.velocityY=.08;}else{playerGull.userData.velocityY-=.003;}
+      playerGull.userData.velocityY=Math.max(-.1,Math.min(.1,playerGull.userData.velocityY));
+      playerGull.position.y=Math.max(1.5,Math.min(30,playerGull.position.y+playerGull.userData.velocityY));
+
+      // Стена у скал (север = положительный Z)
+      if(playerGull.position.z>SHORE_WALL_Z){
+        playerGull.position.z=SHORE_WALL_Z-(playerGull.position.z-SHORE_WALL_Z)*.3;
       }
-      playerGull.userData.velocityY = Math.max(-0.1, Math.min(0.1, playerGull.userData.velocityY));
-      playerGull.position.y = Math.max(1.5, Math.min(30, playerGull.position.y + playerGull.userData.velocityY));
-      const pWingAngle = Math.sin(t * (keys['Space'] ? 4 : 2)) * 0.5;
-      playerGull.userData.wingL.rotation.x =  pWingAngle;
-      playerGull.userData.wingR.rotation.x = -pWingAngle;
 
-      // ── Камера ────────────────────────────────────────────────────
-      const offset = new THREE.Vector3(
-        Math.sin(playerGull.rotation.y) * 20, 6,
-        Math.cos(playerGull.rotation.y) * 20
-      );
-      const targetPos = playerGull.position.clone().add(offset);
-      camera.position.lerp(targetPos, 0.05);
+      const pwa=Math.sin(t*(keys['Space']?4:2))*.5;
+      playerGull.userData.wingL.rotation.x=pwa; playerGull.userData.wingR.rotation.x=-pwa;
 
-      const lookTarget = playerGull.position.clone().add(
-        new THREE.Vector3(-Math.sin(playerGull.rotation.y) * 15, 1, -Math.cos(playerGull.rotation.y) * 15)
-      );
-      camera.lookAt(lookTarget);
+      // Камера
+      const offset=new THREE.Vector3(Math.sin(playerGull.rotation.y)*20,6,Math.cos(playerGull.rotation.y)*20);
+      camera.position.lerp(playerGull.position.clone().add(offset),.05);
+      camera.lookAt(playerGull.position.clone().add(new THREE.Vector3(-Math.sin(playerGull.rotation.y)*15,1,-Math.cos(playerGull.rotation.y)*15)));
 
-      renderer.render(scene, camera);
+      renderer.render(scene,camera);
     }
-
     animate();
   </script>
-
 </body>
 </html>
