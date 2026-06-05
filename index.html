@@ -4,13 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Чайка</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet" />
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { min-height:100vh; overflow:hidden; font-family:'Montserrat',sans-serif; background:#FFB89A; transition:background 2s linear; }
+    body { min-height:100vh; overflow:hidden; font-family:'Montserrat',sans-serif; background:#FFB89A; transition:background 2s linear; cursor:none; }
     #canvas-container { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
     #title-overlay { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; pointer-events:none; user-select:none; }
     #title-overlay h1 { font-family:'Montserrat',sans-serif; font-weight:300; font-size:clamp(3rem,10vw,8rem); color:#fff; letter-spacing:.25em; text-transform:uppercase; text-shadow:0 2px 30px rgba(120,180,220,.6),0 0 80px rgba(100,160,210,.3); animation:fadeIn 2s ease forwards; opacity:0; }
@@ -18,16 +25,34 @@
     @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
     #controls-hint { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%); z-index:10; font-family:'Montserrat',sans-serif; font-weight:300; font-size:.7rem; color:rgba(255,255,255,.55); letter-spacing:.2em; text-transform:uppercase; animation:fadeIn 2s ease 1.5s forwards; opacity:0; pointer-events:none; }
     #time-indicator { position:fixed; top:1.2rem; right:1.5rem; z-index:20; font-family:'Montserrat',sans-serif; font-weight:300; font-size:.75rem; letter-spacing:.25em; text-transform:uppercase; color:rgba(255,255,255,.9); background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.22); padding:.4em .9em; border-radius:2em; backdrop-filter:blur(6px); pointer-events:none; animation:fadeIn 2s ease 2s forwards; opacity:0; min-width:10em; text-align:center; }
+    #loading-screen { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(20,30,50,0.85); color:#fff; font-family:'Montserrat',sans-serif; font-weight:300; letter-spacing:.2em; text-transform:uppercase; font-size:.9rem; gap:1rem; transition:opacity 0.8s ease; }
+    #loading-screen.hidden { opacity:0; pointer-events:none; }
+    #loading-bar-wrap { width:220px; height:3px; background:rgba(255,255,255,.2); border-radius:2px; overflow:hidden; }
+    #loading-bar { height:100%; width:0%; background:#fff; border-radius:2px; transition:width 0.3s ease; }
+    #model-status { position:fixed; top:1.2rem; left:1.5rem; z-index:20; font-family:'Montserrat',sans-serif; font-weight:300; font-size:.7rem; letter-spacing:.15em; text-transform:uppercase; color:rgba(255,255,255,.75); background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.22); padding:.35em .8em; border-radius:2em; backdrop-filter:blur(6px); pointer-events:none; }
+    #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:15; pointer-events:none; width:16px; height:16px; }
+    #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(255,255,255,0.6); border-radius:2px; }
+    #crosshair::before { width:2px; height:100%; left:50%; transform:translateX(-50%); }
+    #crosshair::after { height:2px; width:100%; top:50%; transform:translateY(-50%); }
   </style>
 </head>
 <body>
+  <div id="loading-screen">
+    <div>Загрузка модели…</div>
+    <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+  </div>
   <div id="canvas-container"></div>
   <div id="title-overlay"><h1>Чайка</h1><div class="subtitle">над морем</div></div>
-  <div id="controls-hint">↑ ↓ ← → — управление · Пробел — взлёт · N — ускорить время ×10</div>
+  <div id="controls-hint">WASD / ←→↑↓ — движение · Мышь — поворот · Пробел — взлёт · N — ускорить время ×10</div>
   <div id="time-indicator">☀ Утро · 0с</div>
+  <div id="model-status">⏳ Загрузка…</div>
+  <div id="crosshair"></div>
+
   <script type="module">
     import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+    // ── Renderer & Scene ─────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
@@ -39,10 +64,9 @@
     scene.fog = new THREE.FogExp2(0xFFD0AA, 0.003);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-    camera.position.set(0, 6, 20);
-    camera.lookAt(0, 3, -10);
+    camera.position.set(0, 8, 16);
 
-    // ─── ОСВЕЩЕНИЕ
+    // ── Lights ───────────────────────────────────────────────────────────────
     const ambientLight = new THREE.AmbientLight(0xffeedd, 0.4);
     scene.add(ambientLight);
 
@@ -58,7 +82,7 @@
     const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x7EC8E3, 0.3);
     scene.add(fillLight);
 
-    // ─── СОЛНЦЕ (ЮГ, Z = -150)
+    // ── Sun ──────────────────────────────────────────────────────────────────
     const sunGroup = new THREE.Group();
     sunGroup.position.set(0, 80, -150);
     sunGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(3,32,32), new THREE.MeshBasicMaterial({color:0xFFFDE0,fog:false,depthWrite:false,depthTest:false})), {renderOrder:999}));
@@ -66,15 +90,11 @@
     sunGroup.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(10,32,32), new THREE.MeshBasicMaterial({color:0xFFD54F,transparent:true,opacity:0.15,fog:false,depthWrite:false,depthTest:false})), {renderOrder:997}));
     scene.add(sunGroup);
 
-    const sunReflection = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.MeshBasicMaterial({color:0xFFF8DC,transparent:true,opacity:0.3,depthWrite:false,side:THREE.DoubleSide}));
-    sunReflection.rotation.x = -Math.PI/2;
-    sunReflection.position.set(0,0.2,-150);
-    scene.add(sunReflection);
     const sunLight = new THREE.PointLight(0xFFF8DC, 2, 200);
-    sunLight.position.set(0,0.5,-150);
+    sunLight.position.set(0, 0.5, -150);
     scene.add(sunLight);
 
-    // ─── ЛУНА
+    // ── Moon & Stars ─────────────────────────────────────────────────────────
     const moonGroup = new THREE.Group();
     moonGroup.position.set(-40,40,-120);
     moonGroup.visible = false;
@@ -85,7 +105,6 @@
     moonLight.position.set(-40,0.5,-60);
     scene.add(moonLight);
 
-    // ─── ЗВЁЗДЫ
     const STAR_COUNT = 300;
     const sp = new Float32Array(STAR_COUNT*3);
     for(let i=0;i<STAR_COUNT;i++){const a=Math.random()*Math.PI*2,r=Math.random()*200;sp[i*3]=Math.cos(a)*r;sp[i*3+1]=50+Math.random()*50;sp[i*3+2]=Math.sin(a)*r;}
@@ -94,7 +113,7 @@
     const starMaterial = new THREE.PointsMaterial({color:0xFFFFFF,size:1.8,sizeAttenuation:false,transparent:true,opacity:0.0,fog:false});
     scene.add(new THREE.Points(starGeo, starMaterial));
 
-    // ─── МОРЕ
+    // ── Water plane ──────────────────────────────────────────────────────────
     const ac = document.createElement('canvas'); ac.width=512; ac.height=512;
     const actx = ac.getContext('2d');
     const grad = actx.createRadialGradient(256,256,0,256,256,256);
@@ -113,7 +132,7 @@
     const planePositions = planeGeometry.attributes.position;
     const planeColors = planeGeometry.attributes.color;
 
-    // ─── ПАЛИТРЫ
+    // ── Day/Night phases ─────────────────────────────────────────────────────
     const PHASES = {
       morning:{skyTop:new THREE.Color(0xFFB89A),skyBottom:new THREE.Color(0xFFD0AA),fogColor:new THREE.Color(0xFFD0AA),fogDensity:0.003,ambientColor:new THREE.Color(0xFFDDBB),ambientIntensity:0.4,dirColor:new THREE.Color(0xFFAA66),dirIntensity:0.8,sunX:0,sunY:20,sunZ:-150,sunVisible:true,wDeep:new THREE.Color(0x6B9FAE),wMid:new THREE.Color(0x8CB5C4),wCrest:new THREE.Color(0xFFEEDD),wFoam:new THREE.Color(0xFFFFFF),moonVisible:false,starsOpacity:0.0,moonIntensity:0,label:'🌅 Утро'},
       day:{skyTop:new THREE.Color(0x7EC8E3),skyBottom:new THREE.Color(0xC8E8F5),fogColor:new THREE.Color(0xE8D5B7),fogDensity:0.0025,ambientColor:new THREE.Color(0xFFFFFF),ambientIntensity:0.6,dirColor:new THREE.Color(0xFFF8E7),dirIntensity:1.4,sunX:0,sunY:80,sunZ:-150,sunVisible:true,wDeep:new THREE.Color(0x3A8A9A),wMid:new THREE.Color(0x7EC8E3),wCrest:new THREE.Color(0xFFFFFF),wFoam:new THREE.Color(0xFFF8E7),moonVisible:false,starsOpacity:0.0,moonIntensity:0,label:'☀ День'},
@@ -167,19 +186,13 @@
       dirLight.color.copy(state.dirColor); dirLight.intensity=state.dirIntensity;
       dirLight.position.set(state.sunX,state.sunY,state.sunZ);
       sunGroup.position.set(state.sunX,state.sunY,state.sunZ);
-      sunGroup.visible=state.sunVisible; sunReflection.visible=state.sunVisible;
-      sunReflection.position.x=state.sunX; sunReflection.position.z=state.sunZ;
+      sunGroup.visible=state.sunVisible;
       sunLight.position.set(state.sunX,0.5,state.sunZ); sunLight.visible=state.sunVisible;
       moonGroup.visible=state.moonVisible; moonLight.intensity=state.moonIntensity;
       starMaterial.opacity=state.starsOpacity;
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // ─── СКАЛЫ НА СЕВЕРЕ — ПОЛОЖИТЕЛЬНЫЙ Z (+200 до +250)
-    //
-    // Чайка стоит в (0, 3, 20), смотрит на ЮГ (отриц. Z).
-    // Скалы — ЗА СПИНОЙ чайки, на ПОЛОЖИТЕЛЬНОМ Z.
-    // ════════════════════════════════════════════════════════════════
+    // ── Shore ────────────────────────────────────────────────────────────────
     const shoreGroup = new THREE.Group();
     scene.add(shoreGroup);
 
@@ -188,97 +201,35 @@
     const matLS3 = new THREE.MeshStandardMaterial({color:0xF0E6D8,roughness:0.90,metalness:0.0,flatShading:true});
     const matLS = [matLS1,matLS2,matLS3];
 
-    // Основная стена: ширина 400, высота 30, глубина 15, позиция (0,15,220)
     const baseWall = new THREE.Mesh(new THREE.BoxGeometry(400,30,15), matLS1);
     baseWall.position.set(0,15,220);
     baseWall.castShadow=true; baseWall.receiveShadow=true;
     shoreGroup.add(baseWall);
 
-    // Выступающие блоки сверху — неровный силуэт
-    const topBlocks = [
-      {cx:-175,cz:220,w:55, h:28,d:18,mi:0},
-      {cx:-100,cz:222,w:48, h:42,d:20,mi:1},
-      {cx: -30,cz:219,w:52, h:20,d:16,mi:2},
-      {cx:  35,cz:223,w:44, h:50,d:22,mi:0},
-      {cx: 105,cz:220,w:50, h:35,d:18,mi:1},
-      {cx: 170,cz:221,w:46, h:45,d:20,mi:2},
-      {cx: -62,cz:218,w:38, h:15,d:14,mi:0},
-      {cx:  72,cz:222,w:36, h:22,d:16,mi:1},
-    ];
-
-    topBlocks.forEach(b => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d), matLS[b.mi]);
-      m.position.set(b.cx, 30+b.h/2, b.cz);
-      m.castShadow=true; m.receiveShadow=true;
+    [{cx:-175,cz:220,w:55,h:28,d:18,mi:0},{cx:-100,cz:222,w:48,h:42,d:20,mi:1},
+     {cx: -30,cz:219,w:52,h:20,d:16,mi:2},{cx:  35,cz:223,w:44,h:50,d:22,mi:0},
+     {cx: 105,cz:220,w:50,h:35,d:18,mi:1},{cx: 170,cz:221,w:46,h:45,d:20,mi:2},
+     {cx: -62,cz:218,w:38,h:15,d:14,mi:0},{cx:  72,cz:222,w:36,h:22,d:16,mi:1}]
+    .forEach(b=>{
+      const m=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),matLS[b.mi]);
+      m.position.set(b.cx,30+b.h/2,b.cz); m.castShadow=true; m.receiveShadow=true;
       shoreGroup.add(m);
     });
 
-    // Полоса песка перед скалами
     const sandMat = new THREE.MeshStandardMaterial({color:0xF5E6C8,roughness:0.97,metalness:0.0});
     const sandStrip = new THREE.Mesh(new THREE.BoxGeometry(400,0.2,12), sandMat);
-    sandStrip.position.set(0,0.1,210);
-    sandStrip.receiveShadow=true;
+    sandStrip.position.set(0,0.1,210); sandStrip.receiveShadow=true;
     shoreGroup.add(sandStrip);
 
-    // Обломки у подножия
-    [{cx:-140,cz:205,w:14,h:9,d:10},{cx:-60,cz:207,w:10,h:7,d:8},{cx:5,cz:204,w:16,h:11,d:11},{cx:80,cz:206,w:12,h:8,d:9},{cx:145,cz:205,w:13,h:10,d:9}]
+    [{cx:-140,cz:205,w:14,h:9,d:10},{cx:-60,cz:207,w:10,h:7,d:8},
+     {cx:5,cz:204,w:16,h:11,d:11},{cx:80,cz:206,w:12,h:8,d:9},{cx:145,cz:205,w:13,h:10,d:9}]
     .forEach((d,i)=>{
       const m=new THREE.Mesh(new THREE.BoxGeometry(d.w,d.h,d.d),matLS[i%3]);
       m.position.set(d.cx,d.h/2,d.cz); m.castShadow=true;
       shoreGroup.add(m);
     });
 
-    // Чайки-украшения на скалах
-    const nestMat = new THREE.MeshBasicMaterial({color:0xFFFFFF});
-    topBlocks.forEach(b=>{
-      if(b.h>=28){
-        const topY=30+b.h;
-        const cnt=1+Math.floor(Math.random()*2);
-        for(let j=0;j<cnt;j++){
-          const ng=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8),nestMat);
-          ng.position.set(b.cx+(Math.random()-.5)*b.w*.5, topY+0.4, b.cz+(Math.random()-.5)*b.d*.4);
-          shoreGroup.add(ng);
-        }
-      }
-    });
-
-    // ─── ЧАЙКА
-    function createWing(mir=false){
-      const sh=new THREE.Shape(); const s=mir?-1:1;
-      sh.moveTo(0,0); sh.bezierCurveTo(s*.5,.3,s*2.5,.6,s*4.5,.1); sh.bezierCurveTo(s*3.5,-.1,s*1.5,-.3,0,0);
-      return new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.05,bevelEnabled:true,bevelSize:.05,bevelThickness:.02,bevelSegments:2}),
-        new THREE.MeshStandardMaterial({color:0xF8F4F0,roughness:.7,metalness:0,side:THREE.DoubleSide}));
-    }
-    function mkBody(){const m=new THREE.Mesh(new THREE.CapsuleGeometry(.2,.7,8,16),new THREE.MeshStandardMaterial({color:0xF5F1ED,roughness:.8}));m.rotation.z=Math.PI/2;return m;}
-    function mkTail(){const m=new THREE.Mesh(new THREE.ConeGeometry(.15,.5,6),new THREE.MeshStandardMaterial({color:0xEDE9E4,roughness:.8}));m.rotation.z=Math.PI/2;m.position.x=-.6;return m;}
-    function mkHead(){const m=new THREE.Mesh(new THREE.SphereGeometry(.18,12,12),new THREE.MeshStandardMaterial({color:0xF5F1ED,roughness:.8}));m.position.set(.55,.12,0);return m;}
-    function mkBeak(){const m=new THREE.Mesh(new THREE.ConeGeometry(.05,.3,6),new THREE.MeshStandardMaterial({color:0xF5C842,roughness:.5}));m.rotation.z=-Math.PI/2;m.position.set(.85,.1,0);return m;}
-    function createSeagull(){
-      const g=new THREE.Group();
-      const wL=createWing(false),wR=createWing(true);
-      wL.position.set(-.1,.08,.05); wR.position.set(-.1,.08,-.10);
-      g.add(mkBody(),mkTail(),mkHead(),mkBeak(),wL,wR);
-      g.traverse(c=>{if(c.isMesh)c.castShadow=true;});
-      g.userData.wingL=wL; g.userData.wingR=wR;
-      return g;
-    }
-
-    const seagulls=[];
-    for(let i=0;i<7;i++){
-      const gull=createSeagull();
-      const angle=(i/7)*Math.PI*2, radius=5+Math.random()*15;
-      gull.position.set(Math.cos(angle)*radius,4+Math.random()*8,Math.sin(angle)*radius);
-      gull.scale.setScalar(.6+Math.random()*.6);
-      gull.userData.speed=.004+Math.random()*.006;
-      gull.userData.orbitRadius=radius; gull.userData.orbitAngle=angle;
-      gull.userData.orbitY=gull.position.y;
-      gull.userData.wingPhase=Math.random()*Math.PI*2;
-      gull.userData.wingSpeed=1.5+Math.random()*2;
-      gull.userData.verticalPhase=Math.random()*Math.PI*2;
-      scene.add(gull); seagulls.push(gull);
-    }
-
-    // ─── ОБЛАКА (по всему небу: X -200..200, Z -200..200, Y 40..80)
+    // ── Clouds ───────────────────────────────────────────────────────────────
     function createCloud(){
       const g=new THREE.Group();
       const mat=new THREE.MeshStandardMaterial({color:0xFFFFFF,transparent:true,opacity:.85,roughness:1});
@@ -298,31 +249,407 @@
       scene.add(cloud); clouds.push(cloud);
     }
 
-    // ─── УПРАВЛЕНИЕ
-    const keys={};
-    window.addEventListener('keydown',e=>{keys[e.code]=true;});
-    window.addEventListener('keyup',e=>{keys[e.code]=false;});
+    // ── Fish ─────────────────────────────────────────────────────────────────
+    const fishBodyGeo=new THREE.SphereGeometry(1,12,8);
+    const fishTailGeo=new THREE.ConeGeometry(1,1,5);
+    const fishBodyMat=new THREE.MeshStandardMaterial({color:0xC8D0D8,roughness:0.4,metalness:0.35,transparent:true,opacity:0.82});
+    const fishBackMat=new THREE.MeshStandardMaterial({color:0x7A8B99,roughness:0.5,metalness:0.2,transparent:true,opacity:0.72});
+    const fishTailMat=new THREE.MeshStandardMaterial({color:0x8A9BAA,roughness:0.45,metalness:0.25,transparent:true,opacity:0.78});
 
-    let gameTime=0;
-    const CYCLE=360, BASE_SPEED=1;
-    const SHORE_WALL_Z=190; // чайка не залетает севернее Z=190
+    function createFish(){
+      const fg=new THREE.Group();
+      const bL=0.30+Math.random()*0.10,bH=0.10+Math.random()*0.05,bW=0.075+Math.random()*0.025;
+      const b=new THREE.Mesh(fishBodyGeo,fishBodyMat); b.scale.set(bL,bH,bW); fg.add(b);
+      const bk=new THREE.Mesh(fishBodyGeo,fishBackMat); bk.scale.set(bL*.95,bH*.55,bW*.9); bk.position.y=bH*.55; fg.add(bk);
+      const tl=new THREE.Mesh(fishTailGeo,fishTailMat); tl.scale.set(bH*1.1,bL*.55,bH*.6); tl.rotation.x=Math.PI/2; tl.rotation.z=Math.PI; tl.position.z=bL+bL*.25; fg.add(tl);
+      fg.userData.tailMesh=tl; fg.userData.bodyLen=bL;
+      return fg;
+    }
 
-    const playerGull=seagulls[0];
-    playerGull.scale.setScalar(1.2);
-    playerGull.position.set(0,6,20);
-    playerGull.userData.isPlayer=true;
-    playerGull.userData.velocityY=0;
-
-    window.addEventListener('resize',()=>{
-      camera.aspect=window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth,window.innerHeight);
+    const SCHOOL_CONFIGS=[
+      {cx:-25,cz:-30,depth:-4.5,orbitRadius:20,orbitSpeed:0.12,count:9,spreadX:2.0,spreadY:0.8,spreadZ:3.5},
+      {cx: 30,cz: 20,depth:-3.2,orbitRadius:16,orbitSpeed:0.15,count:10,spreadX:2.2,spreadY:0.7,spreadZ:4.0},
+      {cx: -5,cz: 35,depth:-5.8,orbitRadius:24,orbitSpeed:0.09,count:8, spreadX:1.8,spreadY:0.9,spreadZ:3.2},
+    ];
+    const fishSchools=[];
+    SCHOOL_CONFIGS.forEach((cfg,si)=>{
+      const so={cfg,orbitAngle:(si/SCHOOL_CONFIGS.length)*Math.PI*2,fish:[]};
+      for(let i=0;i<cfg.count;i++){
+        const fm=createFish();
+        fm.userData=Object.assign(fm.userData,{
+          baseOffX:(Math.random()-.5)*cfg.spreadX*2,baseOffY:(Math.random()-.5)*cfg.spreadY*2,baseOffZ:(Math.random()-.5)*cfg.spreadZ*2,
+          indivSpeed:0.30+Math.random()*0.40,sideAmplitude:0.6+Math.random()*0.8,sideFreq:0.18+Math.random()*0.15,sidePhase:Math.random()*Math.PI*2,
+          bodyWobbleFreq:0.3+Math.random()*0.3,bodyWobblePhase:Math.random()*Math.PI*2,bodyWobbleAmp:0.04+Math.random()*0.06,
+          tailFreq:2.0+Math.random()*1.0,tailPhase:Math.random()*Math.PI*2,tailAmp:0.20+Math.random()*0.10,
+          flashInterval:3.0+Math.random()*4.0,flashPhase:Math.random()*Math.PI*2,
+          dirChangeInterval:3.0+Math.random()*2.0,nextDirChange:3.0+Math.random()*2.0,
+          currentDirOffset:0,targetDirOffset:0,dirLerpProgress:1.0,
+          longitudinalOffset:(i/cfg.count-0.5)*cfg.spreadZ*1.5,
+        });
+        scene.add(fm);
+        so.fish.push(fm);
+      }
+      fishSchools.push(so);
     });
 
-    const clock=new THREE.Clock();
-    const timeIndicator=document.getElementById('time-indicator');
+    // ── Mouse look ───────────────────────────────────────────────────────────
+    let mouseYaw = 0;
+    let mousePitch = 0;
+    const MOUSE_SENSITIVITY_X = 0.002;
+    const MOUSE_SENSITIVITY_Y = 0.0015;
+    let pointerLocked = false;
 
-    function waveHeight(wx,wz,t){
+    const canvas = renderer.domElement;
+    canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
+
+    document.addEventListener('pointerlockchange', () => {
+      pointerLocked = document.pointerLockElement === canvas;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!pointerLocked) return;
+      mouseYaw   -= e.movementX * MOUSE_SENSITIVITY_X;
+      mousePitch -= e.movementY * MOUSE_SENSITIVITY_Y;
+      mousePitch  = Math.max(-0.5, Math.min(0.5, mousePitch));
+    });
+
+    // ── Keyboard ─────────────────────────────────────────────────────────────
+    const keys = {};
+    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+    // ── Player & NPC state ───────────────────────────────────────────────────
+    let playerGull  = null;
+    let playerMixer = null;
+
+    const npcGulls = [];
+
+    const NPC_CONFIGS = [
+      { cx:-45, cz:-30, rx:28, rz:28, figure8:false, speed:0.22, startAngle:0.0,  baseY:8,  bobAmp:1.5, wingSpeed:3.2, diveInterval:8  },
+      { cx: 38, cz: 12, rx:22, rz:22, figure8:false, speed:0.30, startAngle:1.2,  baseY:5,  bobAmp:1.0, wingSpeed:3.6, diveInterval:12 },
+      { cx:-12, cz: 48, rx:32, rz:16, figure8:true,  speed:0.18, startAngle:2.5,  baseY:9,  bobAmp:2.0, wingSpeed:3.0, diveInterval:10 },
+      { cx: 25, cz:-45, rx:25, rz:25, figure8:false, speed:0.25, startAngle:0.8,  baseY:6,  bobAmp:1.2, wingSpeed:3.4, diveInterval:15 },
+      { cx:-50, cz: 22, rx:20, rz:28, figure8:true,  speed:0.20, startAngle:3.8,  baseY:7,  bobAmp:1.8, wingSpeed:3.0, diveInterval:9  },
+    ];
+
+    const npcStates = NPC_CONFIGS.map(cfg => ({
+      cfg, angle:cfg.startAngle, driftTimer:5+Math.random()*5, driftY:0, targetDriftY:0,
+      diveTimer:cfg.diveInterval*(0.5+Math.random()), isDiving:false, diveProgress:0,
+      diveDuration:2.2, wingPhase:Math.random()*Math.PI*2,
+    }));
+
+    const playerState = { velocityY:0, currentWingFreq:1.0 };
+
+    // ── Fallback geometry seagull ─────────────────────────────────────────────
+    function createFallbackGull() {
+      const g = new THREE.Group();
+      const white = new THREE.MeshStandardMaterial({ color: 0xF8F8F8, roughness: 0.5, metalness: 0.0 });
+      const gray  = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, roughness: 0.6 });
+      const yellow= new THREE.MeshStandardMaterial({ color: 0xFFCC44, roughness: 0.4 });
+
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), white);
+      body.scale.set(1.6, 0.8, 1.0); g.add(body);
+
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), white);
+      head.position.set(0, 0.28, -0.6); g.add(head);
+
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.35, 6), yellow);
+      beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.22, -0.93); g.add(beak);
+
+      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.55, 6), white);
+      tail.rotation.x = -Math.PI / 2; tail.position.set(0, 0.05, 0.72); g.add(tail);
+
+      const wingGeo = new THREE.BoxGeometry(1.8, 0.06, 0.55);
+      const wingL = new THREE.Mesh(wingGeo, gray);
+      wingL.position.set(-1.1, 0.08, 0); wingL.rotation.z = 0.15; g.add(wingL);
+
+      const wingR = new THREE.Mesh(wingGeo, gray);
+      wingR.position.set( 1.1, 0.08, 0); wingR.rotation.z = -0.15; g.add(wingR);
+
+      g.userData.wingL = wingL;
+      g.userData.wingR = wingR;
+      g.userData.isFallback = true;
+      g.castShadow = true;
+      return g;
+    }
+
+    function animateFallbackWings(gullGroup, t) {
+      const wL = gullGroup.userData.wingL;
+      const wR = gullGroup.userData.wingR;
+      if (!wL || !wR) return;
+      const flap = Math.sin(t * 3.5) * 0.4;
+      wL.rotation.z =  0.15 + flap;
+      wR.rotation.z = -0.15 - flap;
+    }
+
+    // ── GLTF helpers ─────────────────────────────────────────────────────────
+    // Принимает уже загруженный gltf.scene и gltf.animations
+    function buildGullFromGltf(gltfScene, animations, modelScale, animTimeOffset) {
+      const group = new THREE.Group();
+      const inner = new THREE.Group();
+      inner.rotation.y = -Math.PI / 2;
+      inner.scale.setScalar(modelScale);
+      inner.add(gltfScene);
+
+      gltfScene.traverse(child => {
+        if (child.isMesh) { child.castShadow = true; child.receiveShadow = false; }
+      });
+
+      group.add(inner);
+
+      let mixer = null;
+      if (animations && animations.length > 0) {
+        mixer = new THREE.AnimationMixer(gltfScene);
+        const action = mixer.clipAction(animations[0]);
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        // Сдвигаем фазу, чтобы NPC не махали крыльями синхронно
+        if (animTimeOffset) {
+          action.time = animTimeOffset % (animations[0].duration || 1);
+        }
+        action.play();
+      }
+
+      return { group, mixer };
+    }
+
+    // ── Спавн fallback для игрока и NPC (мгновенно) ───────────────────────────
+    function spawnFallbackAll() {
+      console.warn('Запускаю заглушки (fallback-геометрия)');
+      document.getElementById('model-status').textContent = '⚠ Заглушка';
+      document.getElementById('model-status').style.color = '#FFD580';
+
+      const pg = createFallbackGull();
+      pg.position.set(0, 8, 0);
+      pg.scale.setScalar(2.5);
+      scene.add(pg);
+      playerGull = pg;
+      playerMixer = null;
+
+      NPC_CONFIGS.forEach((cfg) => {
+        const ng = createFallbackGull();
+        ng.scale.setScalar(0.8 + Math.random() * 0.3);
+        const sx = cfg.cx + (Math.random() - 0.5) * 10;
+        const sz = cfg.cz + (Math.random() - 0.5) * 10;
+        const sy = 3 + Math.random() * 9;
+        ng.position.set(sx, sy, sz);
+        scene.add(ng);
+        npcGulls.push({ group: ng, mixer: null });
+      });
+    }
+
+    // ── Загрузка моделей через повторный GLTFLoader для каждого экземпляра ────
+    const MODEL_PATH = 'models/seagull/scene.gltf';
+    const PLAYER_SCALE = 2.5;
+    const NPC_SCALE_BASE = PLAYER_SCALE / 3;
+
+    const loadingBar = document.getElementById('loading-bar');
+    const modelStatus = document.getElementById('model-status');
+
+    // Сначала запускаем с заглушками — игра работает сразу
+    spawnFallbackAll();
+
+    // Таймер: если за 10 сек модель не загрузилась — показываем подсказку
+    const loadTimeout = setTimeout(() => {
+      if (playerGull && playerGull.userData.isFallback) {
+        modelStatus.textContent = '⚠ Модель не найдена';
+        modelStatus.style.color = '#FF9966';
+        document.getElementById('loading-screen').classList.add('hidden');
+        console.warn('Таймаут загрузки: модель не найдена за 10 сек, продолжаем с заглушками.');
+      }
+    }, 10000);
+
+    // ── Загружаем игрока ──────────────────────────────────────────────────────
+    const playerLoader = new GLTFLoader();
+    playerLoader.load(
+      MODEL_PATH,
+
+      (gltf) => {
+        clearTimeout(loadTimeout);
+        console.log('GLTF (игрок) загружен:', gltf);
+
+        // Заменяем fallback-игрока на GLTF
+        scene.remove(playerGull);
+        const { group: pGroup, mixer: pMixer } = buildGullFromGltf(
+          gltf.scene, gltf.animations, PLAYER_SCALE, 0
+        );
+        pGroup.position.set(0, 8, 0);
+        scene.add(pGroup);
+        playerGull  = pGroup;
+        playerMixer = pMixer;
+
+        modelStatus.textContent = '✓ GLTF модель';
+        modelStatus.style.color = '#AAFFAA';
+
+        loadingBar.style.width = '30%';
+
+        // ── Загружаем каждого NPC отдельным loader'ом ─────────────────────────
+        // Это гарантирует независимые AnimationMixer без клонирования скелетов.
+        let npcLoaded = 0;
+        const NPC_TOTAL = NPC_CONFIGS.length;
+
+        // Убираем старые fallback NPC
+        npcGulls.forEach(npc => scene.remove(npc.group));
+        npcGulls.length = 0;
+
+        NPC_CONFIGS.forEach((cfg, idx) => {
+          const npcLoader = new GLTFLoader();
+          npcLoader.load(
+            MODEL_PATH,
+
+            (npcGltf) => {
+              npcLoaded++;
+              const npcScale = NPC_SCALE_BASE * (0.85 + Math.random() * 0.30);
+              const animOffset = (idx / NPC_TOTAL) * 2.0; // разброс фаз
+
+              const { group: nGroup, mixer: nMixer } = buildGullFromGltf(
+                npcGltf.scene, npcGltf.animations, npcScale, animOffset
+              );
+
+              const spawnX = Math.max(-60, Math.min(60, cfg.cx));
+              const spawnZ = Math.max(-60, Math.min(60, cfg.cz));
+              const spawnY = 3 + Math.random() * 9;
+              nGroup.position.set(spawnX, spawnY, spawnZ);
+              scene.add(nGroup);
+
+              npcGulls.push({ group: nGroup, mixer: nMixer });
+
+              console.log(`NPC[${idx}] загружен: pos=(${spawnX.toFixed(1)}, ${spawnY.toFixed(1)}, ${spawnZ.toFixed(1)}) scale=${npcScale.toFixed(3)}`);
+
+              // Обновляем прогресс-бар: 30% игрок + 70% NPC
+              loadingBar.style.width = (30 + (npcLoaded / NPC_TOTAL) * 70).toFixed(0) + '%';
+
+              if (npcLoaded === NPC_TOTAL) {
+                setTimeout(() => {
+                  document.getElementById('loading-screen').classList.add('hidden');
+                }, 400);
+              }
+            },
+
+            null, // прогресс NPC не отслеживаем отдельно
+
+            (err) => {
+              console.warn(`NPC[${idx}] не загружен, оставляем заглушку:`, err);
+              npcLoaded++;
+              // Если NPC не загрузился — создаём fallback
+              const ng = createFallbackGull();
+              ng.scale.setScalar(NPC_SCALE_BASE * (0.85 + Math.random() * 0.30));
+              const sx = cfg.cx, sz = cfg.cz, sy = 3 + Math.random() * 9;
+              ng.position.set(sx, sy, sz);
+              scene.add(ng);
+              npcGulls.push({ group: ng, mixer: null });
+
+              if (npcLoaded === NPC_TOTAL) {
+                setTimeout(() => {
+                  document.getElementById('loading-screen').classList.add('hidden');
+                }, 400);
+              }
+            }
+          );
+        });
+      },
+
+      (xhr) => {
+        if (xhr.lengthComputable) {
+          // Первые 30% — загрузка игрока
+          loadingBar.style.width = (xhr.loaded / xhr.total * 30).toFixed(0) + '%';
+        }
+      },
+
+      (error) => {
+        clearTimeout(loadTimeout);
+        console.error('Ошибка загрузки GLTF (игрок):', error);
+        modelStatus.textContent = '⚠ Заглушка (ошибка)';
+        modelStatus.style.color = '#FF9966';
+        document.getElementById('loading-screen').classList.add('hidden');
+        // Игра продолжает работать с fallback-заглушками
+      }
+    );
+
+    // ── Resize ───────────────────────────────────────────────────────────────
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ── animateNPCs ───────────────────────────────────────────────────────────
+    function animateNPCs(delta, t) {
+      npcStates.forEach((npc, idx) => {
+        const cfg = npc.cfg;
+        const npcObj = npcGulls[idx];
+        if (!npcObj) return;
+
+        // Обновляем AnimationMixer
+        if (npcObj.mixer) npcObj.mixer.update(delta);
+        else if (npcObj.group.userData.isFallback) animateFallbackWings(npcObj.group, t);
+
+        // Орбитальное движение
+        npc.angle += delta * cfg.speed;
+        let px, pz;
+        if (cfg.figure8) {
+          px = cfg.cx + cfg.rx * Math.sin(npc.angle);
+          pz = cfg.cz + cfg.rz * Math.sin(npc.angle * 2) * 0.5;
+        } else {
+          px = cfg.cx + cfg.rx * Math.cos(npc.angle);
+          pz = cfg.cz + cfg.rz * Math.sin(npc.angle);
+        }
+
+        // Вертикальное покачивание
+        const bobY = Math.sin(t * 0.35 + cfg.startAngle) * cfg.bobAmp;
+        npc.driftTimer -= delta;
+        if (npc.driftTimer <= 0) {
+          npc.targetDriftY = (Math.random() - 0.5) * 5;
+          npc.driftTimer   = 5 + Math.random() * 5;
+        }
+        npc.driftY += (npc.targetDriftY - npc.driftY) * delta * 0.25;
+
+        const baseAltitude = cfg.baseY + bobY + npc.driftY;
+
+        // Нырок
+        npc.diveTimer -= delta;
+        let diveOffset = 0;
+        if (!npc.isDiving && npc.diveTimer <= 0) {
+          npc.isDiving = true; npc.diveProgress = 0;
+          npc.diveTimer = cfg.diveInterval + Math.random() * 5;
+        }
+        if (npc.isDiving) {
+          npc.diveProgress += delta / npc.diveDuration;
+          if (npc.diveProgress >= 1) npc.isDiving = false;
+          diveOffset = -(cfg.baseY - 1.5) * Math.sin(npc.diveProgress * Math.PI) * 0.70;
+        }
+
+        const finalY = baseAltitude + diveOffset;
+        npcObj.group.position.set(px, finalY, pz);
+
+        // Поворот по направлению движения
+        let tdx, tdz;
+        if (cfg.figure8) {
+          tdx = cfg.rx * Math.cos(npc.angle);
+          tdz = cfg.rz * Math.cos(npc.angle * 2);
+        } else {
+          tdx = -cfg.rx * Math.sin(npc.angle);
+          tdz =  cfg.rz * Math.cos(npc.angle);
+        }
+        npcObj.group.rotation.y = Math.atan2(tdx, tdz);
+
+        // Наклон вперёд при нырке
+        const targetPitch = npc.isDiving ? -Math.sin(npc.diveProgress * Math.PI) * 0.45 : 0;
+        npcObj.group.rotation.x = THREE.MathUtils.lerp(npcObj.group.rotation.x, targetPitch, delta * 3);
+      });
+    }
+
+    // ── Game loop ────────────────────────────────────────────────────────────
+    let gameTime = 0;
+    const CYCLE = 360, BASE_SPEED = 1;
+    const SHORE_WALL_Z = 190;
+    const clock = new THREE.Clock();
+    const timeIndicator = document.getElementById('time-indicator');
+    const tmpColor = new THREE.Color();
+
+    const camTargetPos = new THREE.Vector3();
+    const camTargetLook = new THREE.Vector3();
+
+    function waveHeight(wx, wz, t) {
       const p=3;
       const w1=Math.pow(1-Math.abs(Math.sin((wx*.00875+wz*.020)+t*.45)),p)*2.2;
       const w2=Math.pow(1-Math.abs(Math.sin((wx*.01375-wz*.045)+t*.65)),p)*1.5;
@@ -332,31 +659,23 @@
       return Math.pow(raw,1.6)*9*(1+.1*Math.sin(wx*.5));
     }
 
-    const tmpColor=new THREE.Color();
-    let lastDebugBucket=-1;
+    let debugLogTimer = 0;
 
-    function animate(){
+    function animate() {
       requestAnimationFrame(animate);
-      const delta=clock.getDelta(), t=clock.elapsedTime;
+      const delta = clock.getDelta();
+      const t = clock.elapsedTime;
 
-      // ── Отладка каждые ~2 секунды
-      const bucket=Math.floor(Date.now()/2000);
-      if(bucket!==lastDebugBucket){
-        lastDebugBucket=bucket;
-        console.log('Камера позиция:',camera.position.x.toFixed(1),camera.position.y.toFixed(1),camera.position.z.toFixed(1));
-        console.log('Чайка позиция:',playerGull.position.x.toFixed(1),playerGull.position.y.toFixed(1),playerGull.position.z.toFixed(1));
-      }
-
-      const speed=keys['KeyN']?BASE_SPEED*10:BASE_SPEED;
-      gameTime=(gameTime+delta*speed)%CYCLE;
+      const speed = keys['KeyN'] ? BASE_SPEED*10 : BASE_SPEED;
+      gameTime = (gameTime + delta*speed) % CYCLE;
       updateStateFromTime(gameTime);
       applyStateToScene();
-      timeIndicator.textContent=`${state.label} · ${Math.floor(gameTime)}с`;
+      timeIndicator.textContent = `${state.label} · ${Math.floor(gameTime)}с`;
 
-      // Волны
-      const maxH=9,midL=maxH*.35,crL=maxH*.72,foL=maxH*.88;
+      // Water
+      const maxH=9, midL=maxH*.35, crL=maxH*.72, foL=maxH*.88;
       for(let i=0;i<planePositions.count;i++){
-        const wx=planePositions.getX(i),wz=planePositions.getY(i);
+        const wx=planePositions.getX(i), wz=planePositions.getY(i);
         const h=waveHeight(wx,wz,t);
         planePositions.setZ(i,h);
         if(h>=foL){tmpColor.copy(state.wCrest).lerp(state.wFoam,Math.min((h-foL)/(maxH-foL),1));}
@@ -368,50 +687,141 @@
       planePositions.needsUpdate=true; planeColors.needsUpdate=true;
       planeGeometry.computeVertexNormals();
 
-      // Облака — медленно дрейфуют
+      // Clouds
       clouds.forEach(cloud=>{
-        cloud.position.z-=cloud.userData.driftSpeed;
+        cloud.position.z -= cloud.userData.driftSpeed;
         if(cloud.position.z<-200){cloud.position.z=200;cloud.position.x=(Math.random()-.5)*400;}
-        cloud.position.y=cloud.userData.baseY+Math.sin(t*.15+cloud.userData.bobPhase)*1.5;
+        cloud.position.y = cloud.userData.baseY + Math.sin(t*.15+cloud.userData.bobPhase)*1.5;
       });
 
-      // NPC-чайки
-      seagulls.forEach(gull=>{
-        if(gull.userData.isPlayer)return;
-        gull.userData.orbitAngle+=gull.userData.speed;
-        const a=gull.userData.orbitAngle,r=gull.userData.orbitRadius;
-        gull.position.x=Math.cos(a)*r; gull.position.z=Math.sin(a)*r;
-        gull.position.y=gull.userData.orbitY+Math.sin(t*.5+gull.userData.verticalPhase)*1.2;
-        gull.rotation.y=-a+Math.PI/2;
-        const wa=Math.sin(t*gull.userData.wingSpeed+gull.userData.wingPhase)*.4;
-        gull.userData.wingL.rotation.x=wa; gull.userData.wingR.rotation.x=-wa;
-      });
+      // Player mixer update
+      if (playerMixer) playerMixer.update(delta);
+      else if (playerGull && playerGull.userData.isFallback) animateFallbackWings(playerGull, t);
 
-      // Игрок
-      if(keys['ArrowLeft']) playerGull.rotation.y+=.03;
-      if(keys['ArrowRight']) playerGull.rotation.y-=.03;
-      const dir=new THREE.Vector3(-Math.sin(playerGull.rotation.y),0,-Math.cos(playerGull.rotation.y));
-      if(keys['ArrowUp']) playerGull.position.addScaledVector(dir,.08);
-      if(keys['ArrowDown']) playerGull.position.addScaledVector(dir,-.08);
-      if(keys['Space']){playerGull.userData.velocityY=.08;}else{playerGull.userData.velocityY-=.003;}
-      playerGull.userData.velocityY=Math.max(-.1,Math.min(.1,playerGull.userData.velocityY));
-      playerGull.position.y=Math.max(1.5,Math.min(30,playerGull.position.y+playerGull.userData.velocityY));
+      // NPC движение и анимация
+      animateNPCs(delta, t);
 
-      // Стена у скал (север = положительный Z)
-      if(playerGull.position.z>SHORE_WALL_Z){
-        playerGull.position.z=SHORE_WALL_Z-(playerGull.position.z-SHORE_WALL_Z)*.3;
+      // ── Player controls ───────────────────────────────────────────────────
+      if (playerGull) {
+        if (keys['ArrowLeft']  || keys['KeyA']) mouseYaw += delta * 1.4;
+        if (keys['ArrowRight'] || keys['KeyD']) mouseYaw -= delta * 1.4;
+
+        playerGull.rotation.y = mouseYaw;
+
+        const fwdX = -Math.sin(mouseYaw);
+        const fwdZ = -Math.cos(mouseYaw);
+        const fwd = new THREE.Vector3(fwdX, 0, fwdZ);
+
+        let movingForward = false;
+        if (keys['ArrowUp']   || keys['KeyW']) { playerGull.position.addScaledVector(fwd,  0.22); movingForward = true; }
+        if (keys['ArrowDown'] || keys['KeyS'])   playerGull.position.addScaledVector(fwd, -0.12);
+
+        if (keys['Space']) {
+          playerState.velocityY = 0.09;
+        } else {
+          playerState.velocityY -= 0.003;
+        }
+        playerState.velocityY = Math.max(-0.12, Math.min(0.12, playerState.velocityY));
+        playerGull.position.y = Math.max(2.5, Math.min(40, playerGull.position.y + playerState.velocityY));
+
+        if (playerGull.position.z > SHORE_WALL_Z) {
+          playerGull.position.z = SHORE_WALL_Z - (playerGull.position.z - SHORE_WALL_Z) * 0.3;
+        }
+
+        playerGull.rotation.x = THREE.MathUtils.lerp(
+          playerGull.rotation.x, movingForward ? -0.12 : 0, delta * 3
+        );
+
+        if (playerMixer) {
+          const targetSpeed = movingForward ? 2.0 : (keys['Space'] ? 1.4 : 0.4);
+          playerState.currentWingFreq = THREE.MathUtils.lerp(
+            playerState.currentWingFreq, targetSpeed, delta * 3.0
+          );
+          playerMixer.timeScale = playerState.currentWingFreq;
+        }
+
+        // Камера позади чайки
+        const CAM_DIST   = 5.0;
+        const CAM_HEIGHT = 2.0;
+
+        camTargetPos.set(
+          playerGull.position.x - fwdX * CAM_DIST,
+          playerGull.position.y + CAM_HEIGHT + mousePitch * 4,
+          playerGull.position.z - fwdZ * CAM_DIST
+        );
+        camTargetLook.set(
+          playerGull.position.x + fwdX * 8,
+          playerGull.position.y - mousePitch * 3,
+          playerGull.position.z + fwdZ * 8
+        );
+
+        camera.position.lerp(camTargetPos, 0.10);
+        camera.lookAt(camTargetLook);
+
+        debugLogTimer += delta;
+        if (debugLogTimer >= 1.0) {
+          debugLogTimer = 0;
+          console.log(
+            `[Чайка] pos=(${playerGull.position.x.toFixed(1)}, ${playerGull.position.y.toFixed(1)}, ${playerGull.position.z.toFixed(1)})` +
+            ` | yaw=${THREE.MathUtils.radToDeg(mouseYaw).toFixed(1)}°` +
+            ` | fwd=(${fwdX.toFixed(2)}, 0, ${fwdZ.toFixed(2)})`
+          );
+        }
       }
 
-      const pwa=Math.sin(t*(keys['Space']?4:2))*.5;
-      playerGull.userData.wingL.rotation.x=pwa; playerGull.userData.wingR.rotation.x=-pwa;
+      // Fish opacity by time
+      let fishOpacity;
+      if(state.label.includes('День'))      fishOpacity = 0.82;
+      else if(state.label.includes('Ночь')) fishOpacity = 0.30;
+      else                                   fishOpacity = 0.58;
+      fishBodyMat.opacity = fishOpacity;
+      fishBackMat.opacity = fishOpacity * 0.88;
+      fishTailMat.opacity = fishOpacity * 0.92;
 
-      // Камера
-      const offset=new THREE.Vector3(Math.sin(playerGull.rotation.y)*20,6,Math.cos(playerGull.rotation.y)*20);
-      camera.position.lerp(playerGull.position.clone().add(offset),.05);
-      camera.lookAt(playerGull.position.clone().add(new THREE.Vector3(-Math.sin(playerGull.rotation.y)*15,1,-Math.cos(playerGull.rotation.y)*15)));
+      // Fish schools
+      fishSchools.forEach(school=>{
+        const cfg=school.cfg;
+        school.orbitAngle+=delta*cfg.orbitSpeed;
+        const oa=school.orbitAngle;
+        const sCX=cfg.cx+Math.cos(oa)*cfg.orbitRadius;
+        const sCZ=cfg.cz+Math.sin(oa)*cfg.orbitRadius;
+        const sY=cfg.depth+Math.sin(t*0.15+oa)*0.5;
+        const sDX=-Math.sin(oa), sDZ=Math.cos(oa);
 
-      renderer.render(scene,camera);
+        school.fish.forEach(fm=>{
+          const ud=fm.userData;
+          ud.nextDirChange-=delta;
+          if(ud.nextDirChange<=0){
+            ud.targetDirOffset=(Math.random()-.5)*0.28;
+            ud.dirLerpProgress=0;
+            ud.nextDirChange=ud.dirChangeInterval;
+          }
+          if(ud.dirLerpProgress<1){
+            ud.dirLerpProgress=Math.min(1,ud.dirLerpProgress+delta*0.4);
+            ud.currentDirOffset+=(ud.targetDirOffset-ud.currentDirOffset)*ud.dirLerpProgress*delta*0.5;
+          }
+          const fa=oa+ud.currentDirOffset;
+          const fdX=-Math.sin(fa),fdZ=Math.cos(fa);
+          const so=Math.sin(t*ud.sideFreq+ud.sidePhase)*ud.sideAmplitude;
+          const pX=-fdZ,pZ=fdX;
+          const lP=ud.longitudinalOffset+Math.sin(t*ud.sideFreq*0.3+ud.sidePhase)*0.4;
+          fm.position.set(
+            sCX+ud.baseOffX+pX*so+sDX*lP,
+            sY+ud.baseOffY+Math.sin(t*0.6+ud.sidePhase)*0.18,
+            sCZ+ud.baseOffZ+pZ*so+sDZ*lP
+          );
+          fm.rotation.set(0,-fa,0);
+          const bw=Math.sin(t*ud.bodyWobbleFreq+ud.bodyWobblePhase)*ud.bodyWobbleAmp;
+          fm.rotation.z=bw;
+          if(ud.tailMesh) ud.tailMesh.rotation.y=Math.sin(t*ud.tailFreq+ud.tailPhase)*ud.tailAmp;
+          const fv=Math.sin(t*(1.0/ud.flashInterval)*Math.PI+ud.flashPhase);
+          fm.rotation.z+=Math.pow(Math.max(0,fv),3)*0.52;
+        });
+      });
+
+      renderer.render(scene, camera);
     }
+
     animate();
   </script>
 </body>
